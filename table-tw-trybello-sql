@@ -1,0 +1,40 @@
+WITH
+  CleanedAds AS (
+    SELECT
+      pjt.ad_id AS ad_id,
+      UPPER(
+        REGEXP_REPLACE(pjt.ad_name, ' - Copy( \\d+)?$', '')
+      ) AS base_ad_name,
+      SUM(pjt.spend) AS total_spent,
+      SUM(pjt.order_revenue) / nullIf(SUM(pjt.spend), 0) AS roas,
+      SUM(pjt.orders_quantity) AS total_purchases,
+      SUM(pjt.spend) / nullIf(SUM(pjt.clicks), 0) AS cpc,
+      SUM(pjt.spend) / nullIf(SUM(pjt.orders_quantity), 0) AS cpa,
+      SUM(pjt.order_revenue) / nullIf(SUM(pjt.orders_quantity), 0) AS aov,
+      SUM(pjt.spend) / nullIf(SUM(pjt.impressions) / 1000, 0) AS cpm,
+      SUM(pjt.outbound_clicks) AS total_outbound_clicks,
+      SUM(pjt.spend) / nullIf(SUM(pjt.outbound_clicks), 0) AS cost_per_link_click
+    FROM
+      pixel_joined_tvf (channel = 'facebook-ads', model = 'First Click') AS pjt
+    WHERE
+      pjt.event_date BETWEEN '2025-01-26' AND '2025-02-01'
+    GROUP BY
+      pjt.ad_id,
+      base_ad_name
+  )
+SELECT
+  ca.base_ad_name AS ad_name,
+  SUM(ca.total_spent) AS spent,
+  AVG(ca.roas) AS roas,
+  SUM(ca.total_purchases) AS purchases,
+  AVG(ca.cost_per_link_click) AS cost_per_link_click,
+  AVG(ca.cpc) AS cpc,
+  AVG(ca.cpa) AS cpa,
+  AVG(ca.aov) AS aov,
+  AVG(ca.cpm) AS cpm
+FROM
+  CleanedAds AS ca
+GROUP BY
+  ca.base_ad_name
+ORDER BY
+  spent DESC
