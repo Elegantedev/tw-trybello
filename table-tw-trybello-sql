@@ -1,5 +1,5 @@
 WITH
-  cleaned_ads_cte AS (
+  ad_data_cte AS (
     SELECT
       pjt.ad_id AS ad_id,
       UPPER(
@@ -15,27 +15,28 @@ WITH
       SUM(pjt.outbound_clicks) AS total_outbound_clicks,
       SUM(pjt.spend) / nullIf(SUM(pjt.outbound_clicks), 0) AS cost_per_link_click
     FROM
-      pixel_joined_tvf AS pjt
+      pixel_joined_tvf () AS pjt
     WHERE
       pjt.event_date BETWEEN '2025-02-03' AND '2025-02-03'
       AND pjt.channel = 'facebook-ads'
+      AND pjt.model = 'Triple Attribution'
     GROUP BY
       pjt.ad_id,
       base_ad_name
   )
 SELECT
-  ca.base_ad_name AS ad_name,
-  SUM(ca.total_spent) AS spent,
-  AVG(ca.pixel_roas) AS roas,
-  SUM(ca.pixel_purchases) AS purchases,
-  AVG(ca.cost_per_link_click) AS cost_per_link_click,
-  AVG(ca.cpc) AS cpc,
-  AVG(ca.pixel_cpa) AS cpa,
-  AVG(ca.pixel_aov) AS aov,
-  AVG(ca.cpm) AS cpm
+  ad.base_ad_name AS ad_name,
+  SUM(ad.total_spent) AS spent,
+  AVG(ad.pixel_roas) AS roas,
+  SUM(ad.pixel_purchases) AS purchases,
+  AVG(ad.cost_per_link_click) AS cost_per_link_click,
+  AVG(ad.cpc) AS cpc,
+  AVG(ad.pixel_cpa) AS cpa,
+  AVG(ad.pixel_aov) AS aov,
+  AVG(ad.cpm) AS cpm
 FROM
-  cleaned_ads_cte AS ca
+  ad_data_cte AS ad
 GROUP BY
-  ca.base_ad_name
+  ad.base_ad_name
 ORDER BY
   spent DESC
