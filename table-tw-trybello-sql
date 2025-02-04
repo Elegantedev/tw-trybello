@@ -17,7 +17,7 @@ WITH
     FROM
       pixel_joined_tvf (channel = 'facebook-ads', model = 'First Click') AS pjt
     WHERE
-      pjt.event_date BETWEEN '2025-01-26' AND '2025-02-01'
+      pjt.event_date BETWEEN '2025-02-03' AND '2025-02-03'
     GROUP BY
       pjt.ad_id,
       base_ad_name
