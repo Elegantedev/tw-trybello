@@ -41,6 +41,15 @@ SELECT
       ad_data_cte.total_spend / nullIf(ad_data_cte.total_orders, 0)
     ) < 80 THEN '🚀'
     WHEN (
+      ad_data_cte.total_spend > 100
+      AND (
+        ad_data_cte.total_revenue / nullIf(ad_data_cte.total_spend, 0)
+      ) < 1.4
+      AND (
+        ad_data_cte.total_spend / nullIf(ad_data_cte.total_orders, 0)
+      ) < 80
+    ) THEN '🟠'
+    WHEN (
       ad_data_cte.total_spend BETWEEN 50 AND 99
       AND ad_data_cte.total_orders = 0
     )
@@ -70,4 +79,4 @@ SELECT
 FROM
   ad_data_cte
 ORDER BY
-  global_rank
+  global_rank;
