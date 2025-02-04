@@ -52,7 +52,7 @@ SELECT
       AND (
         ad_data_cte.total_spend / NULLIF(ad_data_cte.total_orders, 0)
       ) < 80
-    ) THEN '🟠'
+    ) THEN '🟣'
     WHEN (
       ad_data_cte.total_spend BETWEEN 50 AND 99
       AND ad_data_cte.total_orders = 0
