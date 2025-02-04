@@ -15,6 +15,10 @@ WITH
       AND pjt.campaign_status = 'ACTIVE'
       AND pjt.event_date BETWEEN '2025-01-30' AND '2025-02-04'
       AND pjt.model = 'Triple Attribution + Meta Views'
+      AND (
+        pjt.campaign_name ilike '%YT%'
+        OR pjt.campaign_name ilike '%YT%'
+      )
     GROUP BY
       pjt.campaign_name,
       pjt.campaign_status
