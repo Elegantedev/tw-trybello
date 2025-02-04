@@ -19,6 +19,10 @@ WITH
       AND pjt.campaign_status = 'ACTIVE'
       AND pjt.event_date BETWEEN '2025-02-01' AND '2025-02-04'
       AND pjt.model = 'Triple Attribution + Meta Views'
+      AND (
+        pjt.campaign_name ilike '%%'
+        OR pjt.campaign_name ilike '%%'
+      )
     GROUP BY
       pjt.campaign_name,
       pjt.adset_name,
@@ -32,21 +36,21 @@ SELECT
   CASE
     WHEN ad_data_cte.total_spend BETWEEN 0 AND 49
     AND (
-      ad_data_cte.total_spend / nullIf(ad_data_cte.total_outbound_clicks, 0)
+      ad_data_cte.total_spend / NULLIF(ad_data_cte.total_outbound_clicks, 0)
     ) > 2.4 THEN '⚓️'
     WHEN (
-      ad_data_cte.total_revenue / nullIf(ad_data_cte.total_spend, 0)
+      ad_data_cte.total_revenue / NULLIF(ad_data_cte.total_spend, 0)
     ) > 1.4
     AND (
-      ad_data_cte.total_spend / nullIf(ad_data_cte.total_orders, 0)
+      ad_data_cte.total_spend / NULLIF(ad_data_cte.total_orders, 0)
     ) < 80 THEN '🚀'
     WHEN (
       ad_data_cte.total_spend > 100
       AND (
-        ad_data_cte.total_revenue / nullIf(ad_data_cte.total_spend, 0)
+        ad_data_cte.total_revenue / NULLIF(ad_data_cte.total_spend, 0)
       ) < 1.4
       AND (
-        ad_data_cte.total_spend / nullIf(ad_data_cte.total_orders, 0)
+        ad_data_cte.total_spend / NULLIF(ad_data_cte.total_orders, 0)
       ) < 80
     ) THEN '🟠'
     WHEN (
@@ -56,20 +60,20 @@ SELECT
     OR (
       ad_data_cte.total_spend > 100
       AND (
-        ad_data_cte.total_revenue / nullIf(ad_data_cte.total_spend, 0)
+        ad_data_cte.total_revenue / NULLIF(ad_data_cte.total_spend, 0)
       ) < 1.4
     ) THEN '🛑'
     ELSE '🟢'
   END AS condition_indicator,
   ad_data_cte.total_spend AS spend,
-  ad_data_cte.total_revenue / nullIf(ad_data_cte.total_spend, 0) AS pixel_roas,
+  ad_data_cte.total_revenue / NULLIF(ad_data_cte.total_spend, 0) AS pixel_roas,
   ad_data_cte.total_orders AS orders_quantity,
-  ad_data_cte.total_spend / nullIf(ad_data_cte.total_outbound_clicks, 0) AS outbound_cpc,
-  ad_data_cte.total_spend / nullIf(ad_data_cte.total_clicks, 0) AS cpc,
-  ad_data_cte.total_spend / nullIf(ad_data_cte.total_orders, 0) AS pixel_cpa,
-  ad_data_cte.total_revenue / nullIf(ad_data_cte.total_orders, 0) AS pixel_aov,
+  ad_data_cte.total_spend / NULLIF(ad_data_cte.total_outbound_clicks, 0) AS outbound_cpc,
+  ad_data_cte.total_spend / NULLIF(ad_data_cte.total_clicks, 0) AS cpc,
+  ad_data_cte.total_spend / NULLIF(ad_data_cte.total_orders, 0) AS pixel_cpa,
+  ad_data_cte.total_revenue / NULLIF(ad_data_cte.total_orders, 0) AS pixel_aov,
   (
-    ad_data_cte.total_spend / nullIf(ad_data_cte.total_impressions, 0)
+    ad_data_cte.total_spend / NULLIF(ad_data_cte.total_impressions, 0)
   ) * 1000 AS cpm,
   ad_data_cte.ad_status AS ad_status,
   ROW_NUMBER() OVER (
