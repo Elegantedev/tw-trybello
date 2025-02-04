@@ -11,15 +11,15 @@ WITH
       SUM(pjt.spend) / nullIf(SUM(pjt.clicks), 0) AS cpc,
       SUM(pjt.spend) / nullIf(SUM(pjt.orders_quantity), 0) AS pixel_cpa,
       SUM(pjt.order_revenue) / nullIf(SUM(pjt.orders_quantity), 0) AS pixel_aov,
-      SUM(pjt.spend) / nullIf(SUM(pjt.impressions) / 1000, 0) AS cpm,
+      SUM(pjt.spend) / nullIf(SUM(pjt.impressions), 0) * 1000 AS cpm,
       SUM(pjt.outbound_clicks) AS total_outbound_clicks,
       SUM(pjt.spend) / nullIf(SUM(pjt.outbound_clicks), 0) AS cost_per_link_click
     FROM
       pixel_joined_tvf () AS pjt
     WHERE
-      pjt.event_date BETWEEN '2025-02-01' AND '2025-02-04'
+      pjt.event_date BETWEEN '2025-01-24' AND '2025-02-03'
       AND pjt.channel = 'facebook-ads'
-      AND pjt.model = 'Triple Attribution'
+      AND pjt.model = 'Triple Attribution + Meta Views'
     GROUP BY
       pjt.ad_id,
       base_ad_name
@@ -27,13 +27,13 @@ WITH
 SELECT
   ad.base_ad_name AS ad_name,
   SUM(ad.total_spent) AS spent,
-  AVG(ad.pixel_roas) AS roas,
+  SUM(ad.pixel_roas * ad.total_spent) / SUM(ad.total_spent) AS roas,
   SUM(ad.pixel_purchases) AS purchases,
-  AVG(ad.cost_per_link_click) AS cost_per_link_click,
-  AVG(ad.cpc) AS cpc,
-  AVG(ad.pixel_cpa) AS cpa,
-  AVG(ad.pixel_aov) AS aov,
-  AVG(ad.cpm) AS cpm
+  SUM(ad.cost_per_link_click * ad.total_outbound_clicks) / SUM(ad.total_outbound_clicks) AS cost_per_link_click,
+  SUM(ad.cpc * ad.total_spent) / SUM(ad.total_spent) AS cpc,
+  SUM(ad.pixel_cpa * ad.pixel_purchases) / SUM(ad.pixel_purchases) AS cpa,
+  SUM(ad.pixel_aov * ad.pixel_purchases) / SUM(ad.pixel_purchases) AS aov,
+  SUM(ad.cpm * ad.total_spent) / SUM(ad.total_spent) AS cpm
 FROM
   ad_data_cte AS ad
 GROUP BY
