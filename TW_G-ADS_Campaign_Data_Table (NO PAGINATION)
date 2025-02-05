@@ -38,7 +38,7 @@ SELECT
     ) < 1.4
     AND (
       ad_data_cte.total_spend / nullIf(ad_data_cte.total_orders, 0)
-    ) < 80 THEN '🟠'
+    ) < 80 THEN '🟪'
     WHEN (
       ad_data_cte.total_spend BETWEEN 50 AND 99
       AND ad_data_cte.total_orders = 0
@@ -48,7 +48,7 @@ SELECT
       AND (
         ad_data_cte.total_revenue / nullIf(ad_data_cte.total_spend, 0)
       ) < 1.4
-    ) THEN '🛑'
+    ) THEN '⛔️'
     ELSE '🟢'
   END AS condition_indicator,
   ad_data_cte.total_spend AS spend,
