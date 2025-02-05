@@ -1,0 +1,26 @@
+select
+  ad_name,
+  sum(spend) as spend,
+  divide (sum(pj.order_revenue), sum(pj.spend)) as pixel_roas,
+  sum(orders_quantity) as orders_quantity,
+  divide (sum(pj.spend), sum(pj.clicks)) as cpc,
+  divide (sum(pj.spend), sum(pj.orders_quantity)) as pixel_cpa,
+  divide (sum(pj.order_revenue), sum(pj.orders_quantity)) pixel_aov,
+  divide (sum(pj.spend), sum(pj.impressions)) * 1000 as cpm,
+  ad_status,
+  campaign_name,
+  adset_name
+from
+  pixel_joined_tvf () pj
+where
+  campaign_name like '%YT%'
+  and channel = 'google-ads'
+  and ad_status = 'ACTIVE'
+  and campaign_status = 'ACTIVE'
+  and model = 'Triple Attribution + Meta Views'
+  and event_date between '2025-01-31' and '2025-02-05'
+group by
+  grouping sets (
+    (ad_name, ad_status, campaign_name, adset_name),
+    ()
+  )
