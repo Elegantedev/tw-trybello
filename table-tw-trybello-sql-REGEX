@@ -1,47 +1,49 @@
 WITH
   ad_data_cte AS (
     SELECT
-      pjt.ad_id AS ad_id,
+      pjt.ad_id AS ad_id_alias,
       UPPER(
         REGEXP_REPLACE(pjt.ad_name, ' - Copy( \\d+)?$', '')
-      ) AS base_ad_name,
-      SUM(pjt.spend) AS total_spent,
-      SUM(pjt.order_revenue) / nullIf(SUM(pjt.spend), 0) AS pixel_roas,
-      SUM(pjt.orders_quantity) AS pixel_purchases,
-      SUM(pjt.spend) / nullIf(SUM(pjt.clicks), 0) AS cpc,
-      SUM(pjt.spend) / nullIf(SUM(pjt.orders_quantity), 0) AS pixel_cpa,
-      SUM(pjt.order_revenue) / nullIf(SUM(pjt.orders_quantity), 0) AS pixel_aov,
-      SUM(pjt.spend) / nullIf(SUM(pjt.impressions) / 1000, 0) AS cpm,
-      SUM(pjt.clicks) / nullIf(SUM(pjt.impressions), 0) AS ctr_all,
-      SUM(pjt.outbound_clicks) / nullIf(SUM(pjt.impressions), 0) AS ctr_link,
-      SUM(pjt.outbound_clicks) AS total_outbound_clicks
+      ) AS base_ad_name_alias,
+      SUM(COALESCE(pjt.spend, 0)) AS total_spent_alias,
+      SUM(COALESCE(pjt.order_revenue, 0)) / NULLIF(SUM(COALESCE(pjt.spend, 0)), 0) AS pixel_roas_alias,
+      SUM(COALESCE(pjt.orders_quantity, 0)) AS pixel_purchases_alias,
+      SUM(COALESCE(pjt.spend, 0)) / NULLIF(SUM(COALESCE(pjt.clicks, 0)), 0) AS cpc_alias,
+      SUM(COALESCE(pjt.spend, 0)) / NULLIF(SUM(COALESCE(pjt.orders_quantity, 0)), 0) AS pixel_cpa_alias,
+      SUM(COALESCE(pjt.order_revenue, 0)) / NULLIF(SUM(COALESCE(pjt.orders_quantity, 0)), 0) AS pixel_aov_alias,
+      SUM(COALESCE(pjt.spend, 0)) / NULLIF(SUM(COALESCE(pjt.impressions, 0)) / 1000, 0) AS cpm_alias,
+      SUM(COALESCE(pjt.clicks, 0)) / NULLIF(SUM(COALESCE(pjt.impressions, 0)), 0) AS ctr_all_alias,
+      SUM(COALESCE(pjt.outbound_clicks, 0)) / NULLIF(SUM(COALESCE(pjt.impressions, 0)), 0) AS ctr_link_alias,
+      SUM(COALESCE(pjt.outbound_clicks, 0)) AS total_outbound_clicks_alias
     FROM
       pixel_joined_tvf () AS pjt
     WHERE
-      pjt.event_date BETWEEN '2025-01-31' AND '2025-02-05'
+      pjt.event_date BETWEEN '2025-01-24' AND '2025-02-03'
       AND pjt.channel = 'facebook-ads'
       AND pjt.model = 'Triple Attribution + Meta Views'
-      AND pjt.campaign_name ilike '%%'
-      AND pjt.ad_name ilike '%%'
+      AND pjt.campaign_name ILIKE '%%'
+      AND pjt.ad_name ILIKE '%A1 |S249 | V8%'
     GROUP BY
       pjt.ad_id,
-      base_ad_name
+      base_ad_name_alias
   )
 SELECT
-  ad.base_ad_name AS ad_name,
-  SUM(ad.total_spent) AS spent,
-  SUM(ad.pixel_roas * ad.total_spent) / SUM(ad.total_spent) AS roas,
-  SUM(ad.pixel_purchases) AS purchases,
-  SUM(ad.total_spent) / nullIf(SUM(ad.total_outbound_clicks), 0) AS cost_per_link_click,
-  SUM(ad.cpc * ad.total_spent) / SUM(ad.total_spent) AS cpc,
-  SUM(ad.pixel_cpa * ad.pixel_purchases) / nullIf(SUM(ad.pixel_purchases), 0) AS cpa,
-  SUM(ad.pixel_aov * ad.pixel_purchases) / nullIf(SUM(ad.pixel_purchases), 0) AS aov,
-  SUM(ad.cpm * ad.total_spent) / SUM(ad.total_spent) AS cpm,
-  SUM(ad.ctr_all * ad.total_spent) / SUM(ad.total_spent) AS ctr_all,
-  SUM(ad.ctr_link * ad.total_spent) / SUM(ad.total_spent) AS ctr_link
+  ad.base_ad_name_alias AS ad_name,
+  SUM(ad.total_spent_alias) AS spent,
+  SUM(ad.pixel_roas_alias * ad.total_spent_alias) / SUM(ad.total_spent_alias) AS roas,
+  SUM(ad.pixel_purchases_alias) AS purchases,
+  SUM(ad.total_spent_alias) / NULLIF(SUM(ad.total_outbound_clicks_alias), 0) AS cost_per_link_click,
+  SUM(ad.cpc_alias * ad.total_spent_alias) / SUM(ad.total_spent_alias) AS cpc,
+  SUM(ad.total_spent_alias) / NULLIF(SUM(ad.pixel_purchases_alias), 0) AS cpa,
+  SUM(ad.pixel_aov_alias * ad.pixel_purchases_alias) / NULLIF(SUM(ad.pixel_purchases_alias), 0) AS aov,
+  SUM(ad.cpm_alias * ad.total_spent_alias) / SUM(ad.total_spent_alias) AS cpm,
+  SUM(ad.ctr_all_alias * ad.total_spent_alias) / SUM(ad.total_spent_alias) AS ctr_all,
+  SUM(ad.ctr_link_alias * ad.total_spent_alias) / SUM(ad.total_spent_alias) AS ctr_link
 FROM
   ad_data_cte AS ad
 GROUP BY
-  ad.base_ad_name
+  ad.base_ad_name_alias
 ORDER BY
   spent DESC
+LIMIT
+  1
