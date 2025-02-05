@@ -22,6 +22,7 @@ WITH
       AND pjt.channel = 'facebook-ads'
       AND pjt.model = 'Triple Attribution + Meta Views'
       AND pjt.campaign_name ilike '%%'
+      AND pjt.ad_name ilike '%%'
     GROUP BY
       pjt.ad_id,
       base_ad_name
