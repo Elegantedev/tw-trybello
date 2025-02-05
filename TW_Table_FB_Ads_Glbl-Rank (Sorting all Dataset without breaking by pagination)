@@ -17,11 +17,11 @@ WITH
       pjt.channel = 'facebook-ads'
       AND pjt.ad_status = 'ACTIVE'
       AND pjt.campaign_status = 'ACTIVE'
-      AND pjt.event_date BETWEEN (CURRENT_DATE() - 3) AND CURRENT_DATE()
+      AND pjt.event_date BETWEEN (current_date() - 3) AND current_date()
       AND pjt.model = 'Triple Attribution + Meta Views'
       AND (
-        pjt.campaign_name ilike '%%'
-        OR pjt.campaign_name ilike '%%'
+        pjt.campaign_name ILIKE '%%'
+        OR pjt.campaign_name ILIKE '%%'
       )
     GROUP BY
       pjt.campaign_name,
@@ -31,9 +31,9 @@ WITH
   )
 SELECT
   CONCAT(
-    formatDateTime (CURRENT_DATE() - 3, '%m/%d/%y'),
+    formatDateTime (current_date() - 3, '%m/%d/%y'),
     ' - ',
-    formatDateTime (CURRENT_DATE(), '%m/%d/%y')
+    formatDateTime (current_date(), '%m/%d/%y')
   ) AS DATE,
   ad_data_cte.campaign_name_alias AS campaign_name,
   ad_data_cte.adset_name_alias AS adset_name,
