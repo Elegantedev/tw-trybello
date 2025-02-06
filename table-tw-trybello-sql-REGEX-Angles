@@ -1,0 +1,51 @@
+WITH
+  ad_data_cte AS (
+    SELECT
+      CASE
+        WHEN LOWER(pjt.ad_name) LIKE LOWER('%menopause%') THEN 'Menopause'
+        WHEN LOWER(pjt.ad_name) LIKE LOWER('%general%') THEN 'General'
+        WHEN LOWER(pjt.ad_name) LIKE LOWER('%discredit%') THEN 'Discredit'
+        WHEN LOWER(pjt.ad_name) LIKE LOWER('%keratin%biotin%') THEN 'Keratin-Biotin'
+        WHEN LOWER(pjt.ad_name) LIKE LOWER('%alopecia%') THEN 'Alopecia'
+        WHEN LOWER(pjt.ad_name) LIKE LOWER('%extensions%') THEN 'Extensions'
+        WHEN LOWER(pjt.ad_name) LIKE LOWER('%stress%') THEN 'Stress'
+        ELSE 'Other'
+      END AS group_keyword_alias,
+      SUM(COALESCE(pjt.spend, 0)) AS total_spent_alias,
+      SUM(COALESCE(pjt.order_revenue, 0)) / nullIf(SUM(COALESCE(pjt.spend, 0)), 0) AS pixel_roas_alias,
+      SUM(COALESCE(pjt.orders_quantity, 0)) AS pixel_purchases_alias,
+      SUM(COALESCE(pjt.spend, 0)) / nullIf(SUM(COALESCE(pjt.clicks, 0)), 0) AS cpc_alias,
+      SUM(COALESCE(pjt.spend, 0)) / nullIf(SUM(COALESCE(pjt.orders_quantity, 0)), 0) AS pixel_cpa_alias,
+      SUM(COALESCE(pjt.order_revenue, 0)) / nullIf(SUM(COALESCE(pjt.orders_quantity, 0)), 0) AS pixel_aov_alias,
+      SUM(COALESCE(pjt.spend, 0)) / nullIf(SUM(COALESCE(pjt.impressions, 0)) / 1000, 0) AS cpm_alias,
+      SUM(COALESCE(pjt.clicks, 0)) / nullIf(SUM(COALESCE(pjt.impressions, 0)), 0) AS ctr_all_alias,
+      SUM(COALESCE(pjt.outbound_clicks, 0)) / nullIf(SUM(COALESCE(pjt.impressions, 0)), 0) AS ctr_link_alias,
+      SUM(COALESCE(pjt.outbound_clicks, 0)) AS total_outbound_clicks_alias
+    FROM
+      pixel_joined_tvf () AS pjt
+    WHERE
+      pjt.event_date BETWEEN '2025-01-24' AND '2025-02-05'
+      AND pjt.channel = 'facebook-ads'
+      AND pjt.model = 'Triple Attribution + Meta Views'
+      AND pjt.campaign_name ilike '%%'
+    GROUP BY
+      group_keyword_alias
+  )
+SELECT
+  ad.group_keyword_alias AS ad_keyword_group,
+  SUM(ad.total_spent_alias) AS spent,
+  SUM(ad.pixel_roas_alias * ad.total_spent_alias) / SUM(ad.total_spent_alias) AS roas,
+  SUM(ad.pixel_purchases_alias) AS purchases,
+  SUM(ad.total_spent_alias) / nullIf(SUM(ad.total_outbound_clicks_alias), 0) AS cost_per_link_click,
+  SUM(ad.cpc_alias * ad.total_spent_alias) / SUM(ad.total_spent_alias) AS cpc,
+  SUM(ad.total_spent_alias) / nullIf(SUM(ad.pixel_purchases_alias), 0) AS cpa,
+  SUM(ad.pixel_aov_alias * ad.pixel_purchases_alias) / nullIf(SUM(ad.pixel_purchases_alias), 0) AS aov,
+  SUM(ad.cpm_alias * ad.total_spent_alias) / SUM(ad.total_spent_alias) AS cpm,
+  SUM(ad.ctr_all_alias * ad.total_spent_alias) / SUM(ad.total_spent_alias) AS ctr_all,
+  SUM(ad.ctr_link_alias * ad.total_spent_alias) / SUM(ad.total_spent_alias) AS ctr_link
+FROM
+  ad_data_cte AS ad
+GROUP BY
+  ad.group_keyword_alias
+ORDER BY
+  spent DESC
