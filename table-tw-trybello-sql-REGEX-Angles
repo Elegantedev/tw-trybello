@@ -1,25 +1,58 @@
 WITH
+  entities_cte AS (
+    SELECT
+      'Menopause' AS entity
+    UNION ALL
+    SELECT
+      'General'
+    UNION ALL
+    SELECT
+      'Discredit'
+    UNION ALL
+    SELECT
+      'Keratin-Biotin'
+    UNION ALL
+    SELECT
+      'Keratin'
+    UNION ALL
+    SELECT
+      'Biotin'
+    UNION ALL
+    SELECT
+      'Alopecia'
+    UNION ALL
+    SELECT
+      'Extensions'
+    UNION ALL
+    SELECT
+      'Stress'
+  ),
   ad_data_cte AS (
     SELECT
       CASE
-        WHEN LOWER(pjt.ad_name) LIKE LOWER('%menopause%') THEN 'Menopause'
-        WHEN LOWER(pjt.ad_name) LIKE LOWER('%general%') THEN 'General'
-        WHEN LOWER(pjt.ad_name) LIKE LOWER('%discredit%') THEN 'Discredit'
-        WHEN LOWER(pjt.ad_name) LIKE LOWER('%keratin%biotin%') THEN 'Keratin-Biotin'
-        WHEN LOWER(pjt.ad_name) LIKE LOWER('%alopecia%') THEN 'Alopecia'
-        WHEN LOWER(pjt.ad_name) LIKE LOWER('%extensions%') THEN 'Extensions'
-        WHEN LOWER(pjt.ad_name) LIKE LOWER('%stress%') THEN 'Stress'
-        ELSE 'Other'
+        WHEN LOWER(pjt.ad_name) LIKE '%keratin%'
+        AND LOWER(pjt.ad_name) LIKE '%biotin%' THEN 'Keratin-Biotin'
+        WHEN LOWER(pjt.ad_name) LIKE '%keratin%'
+        AND LOWER(pjt.ad_name) NOT LIKE '%biotin%' THEN 'Keratin'
+        WHEN LOWER(pjt.ad_name) LIKE '%biotin%'
+        AND LOWER(pjt.ad_name) NOT LIKE '%keratin%' THEN 'Biotin'
+        WHEN LOWER(pjt.ad_name) LIKE '%menopause%' THEN 'Menopause'
+        WHEN LOWER(pjt.ad_name) LIKE '%general%' THEN 'General'
+        WHEN LOWER(pjt.ad_name) LIKE '%discredit%' THEN 'Discredit'
+        WHEN LOWER(pjt.ad_name) LIKE '%alopecia%' THEN 'Alopecia'
+        WHEN LOWER(pjt.ad_name) LIKE '%extensions%' THEN 'Extensions'
+        WHEN LOWER(pjt.ad_name) LIKE '%stress%' THEN 'Stress'
+        ELSE NULL
       END AS group_keyword_alias,
       SUM(COALESCE(pjt.spend, 0)) AS total_spent_alias,
-      SUM(COALESCE(pjt.order_revenue, 0)) / nullIf(SUM(COALESCE(pjt.spend, 0)), 0) AS pixel_roas_alias,
+      SUM(COALESCE(pjt.order_revenue, 0)) / NULLIF(SUM(COALESCE(pjt.spend, 0)), 0) AS pixel_roas_alias,
       SUM(COALESCE(pjt.orders_quantity, 0)) AS pixel_purchases_alias,
-      SUM(COALESCE(pjt.spend, 0)) / nullIf(SUM(COALESCE(pjt.clicks, 0)), 0) AS cpc_alias,
-      SUM(COALESCE(pjt.spend, 0)) / nullIf(SUM(COALESCE(pjt.orders_quantity, 0)), 0) AS pixel_cpa_alias,
-      SUM(COALESCE(pjt.order_revenue, 0)) / nullIf(SUM(COALESCE(pjt.orders_quantity, 0)), 0) AS pixel_aov_alias,
-      SUM(COALESCE(pjt.spend, 0)) / nullIf(SUM(COALESCE(pjt.impressions, 0)) / 1000, 0) AS cpm_alias,
-      SUM(COALESCE(pjt.clicks, 0)) / nullIf(SUM(COALESCE(pjt.impressions, 0)), 0) AS ctr_all_alias,
-      SUM(COALESCE(pjt.outbound_clicks, 0)) / nullIf(SUM(COALESCE(pjt.impressions, 0)), 0) AS ctr_link_alias,
+      SUM(COALESCE(pjt.spend, 0)) / NULLIF(SUM(COALESCE(pjt.clicks, 0)), 0) AS cpc_alias,
+      SUM(COALESCE(pjt.spend, 0)) / NULLIF(SUM(COALESCE(pjt.orders_quantity, 0)), 0) AS pixel_cpa_alias,
+      SUM(COALESCE(pjt.order_revenue, 0)) / NULLIF(SUM(COALESCE(pjt.orders_quantity, 0)), 0) AS pixel_aov_alias,
+      SUM(COALESCE(pjt.spend, 0)) / NULLIF(SUM(COALESCE(pjt.impressions, 0)) / 1000, 0) AS cpm_alias,
+      SUM(COALESCE(pjt.clicks, 0)) / NULLIF(SUM(COALESCE(pjt.impressions, 0)), 0) AS ctr_all_alias,
+      SUM(COALESCE(pjt.outbound_clicks, 0)) / NULLIF(SUM(COALESCE(pjt.impressions, 0)), 0) AS ctr_link_alias,
       SUM(COALESCE(pjt.outbound_clicks, 0)) AS total_outbound_clicks_alias
     FROM
       pixel_joined_tvf () AS pjt
@@ -27,25 +60,50 @@ WITH
       pjt.event_date BETWEEN '2025-01-24' AND '2025-02-05'
       AND pjt.channel = 'facebook-ads'
       AND pjt.model = 'Triple Attribution + Meta Views'
-      AND pjt.campaign_name ilike '%%'
+      AND pjt.campaign_name ILIKE '%%'
     GROUP BY
       group_keyword_alias
   )
 SELECT
-  ad.group_keyword_alias AS ad_keyword_group,
-  SUM(ad.total_spent_alias) AS spent,
-  SUM(ad.pixel_roas_alias * ad.total_spent_alias) / SUM(ad.total_spent_alias) AS roas,
-  SUM(ad.pixel_purchases_alias) AS purchases,
-  SUM(ad.total_spent_alias) / nullIf(SUM(ad.total_outbound_clicks_alias), 0) AS cost_per_link_click,
-  SUM(ad.cpc_alias * ad.total_spent_alias) / SUM(ad.total_spent_alias) AS cpc,
-  SUM(ad.total_spent_alias) / nullIf(SUM(ad.pixel_purchases_alias), 0) AS cpa,
-  SUM(ad.pixel_aov_alias * ad.pixel_purchases_alias) / nullIf(SUM(ad.pixel_purchases_alias), 0) AS aov,
-  SUM(ad.cpm_alias * ad.total_spent_alias) / SUM(ad.total_spent_alias) AS cpm,
-  SUM(ad.ctr_all_alias * ad.total_spent_alias) / SUM(ad.total_spent_alias) AS ctr_all,
-  SUM(ad.ctr_link_alias * ad.total_spent_alias) / SUM(ad.total_spent_alias) AS ctr_link
+  e.entity AS ad_keyword_group,
+  COALESCE(SUM(a.total_spent_alias), 0) AS spent,
+  CASE
+    WHEN SUM(a.total_spent_alias) = 0 THEN 0
+    ELSE SUM(a.pixel_roas_alias * a.total_spent_alias) / SUM(a.total_spent_alias)
+  END AS roas,
+  COALESCE(SUM(a.pixel_purchases_alias), 0) AS purchases,
+  CASE
+    WHEN SUM(a.total_outbound_clicks_alias) = 0 THEN 0
+    ELSE SUM(a.total_spent_alias) / SUM(a.total_outbound_clicks_alias)
+  END AS cost_per_link_click,
+  CASE
+    WHEN SUM(a.total_spent_alias) = 0 THEN 0
+    ELSE SUM(a.cpc_alias * a.total_spent_alias) / SUM(a.total_spent_alias)
+  END AS cpc,
+  CASE
+    WHEN SUM(a.pixel_purchases_alias) = 0 THEN 0
+    ELSE SUM(a.total_spent_alias) / SUM(a.pixel_purchases_alias)
+  END AS cpa,
+  CASE
+    WHEN SUM(a.pixel_purchases_alias) = 0 THEN 0
+    ELSE SUM(a.pixel_aov_alias * a.pixel_purchases_alias) / SUM(a.pixel_purchases_alias)
+  END AS aov,
+  CASE
+    WHEN SUM(a.total_spent_alias) = 0 THEN 0
+    ELSE SUM(a.cpm_alias * a.total_spent_alias) / SUM(a.total_spent_alias)
+  END AS cpm,
+  CASE
+    WHEN SUM(a.total_spent_alias) = 0 THEN 0
+    ELSE SUM(a.ctr_all_alias * a.total_spent_alias) / SUM(a.total_spent_alias)
+  END AS ctr_all,
+  CASE
+    WHEN SUM(a.total_spent_alias) = 0 THEN 0
+    ELSE SUM(a.ctr_link_alias * a.total_spent_alias) / SUM(a.total_spent_alias)
+  END AS ctr_link
 FROM
-  ad_data_cte AS ad
+  entities_cte AS e
+  LEFT JOIN ad_data_cte AS a ON e.entity = a.group_keyword_alias
 GROUP BY
-  ad.group_keyword_alias
+  e.entity
 ORDER BY
   spent DESC
