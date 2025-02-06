@@ -15,14 +15,14 @@ WITH
     FROM
       pixel_joined_tvf () AS pjt
     WHERE
-      pjt.channel IN ('facebook-ads')
+      pjt.channel = 'google-ads'
       AND pjt.ad_status = 'ACTIVE'
       AND pjt.campaign_status = 'ACTIVE'
       AND pjt.event_date BETWEEN '2025-02-03' AND '2025-02-06'
       AND pjt.model = 'Triple Attribution + Meta Views'
       AND (
-        pjt.campaign_name ilike '%%'
-        OR pjt.campaign_name ilike '%%'
+        pjt.campaign_name ilike '%yt%'
+        OR pjt.campaign_name ilike '%yt%'
       )
     GROUP BY
       pjt.campaign_name,
@@ -36,6 +36,29 @@ SELECT
   ad_data_cte.adset_name AS adset_name,
   ad_data_cte.ad_name AS ad_name,
   CASE
+    WHEN (
+      ad_data_cte.total_revenue / nullIf(ad_data_cte.total_spend, 0)
+    ) > 1.49
+    AND (
+      ad_data_cte.total_spend / nullIf(ad_data_cte.total_orders, 0)
+    ) < 75 THEN '🚀'
+    WHEN ad_data_cte.total_spend > 100
+    AND (
+      ad_data_cte.total_revenue / nullIf(ad_data_cte.total_spend, 0)
+    ) < 1.5
+    AND (
+      ad_data_cte.total_spend / nullIf(ad_data_cte.total_orders, 0)
+    ) < 76 THEN '☑️'
+    WHEN (
+      ad_data_cte.total_spend BETWEEN 50 AND 99
+      AND ad_data_cte.total_orders = 0
+    )
+    OR (
+      ad_data_cte.total_spend > 100
+      AND (
+        ad_data_cte.total_revenue / nullIf(ad_data_cte.total_spend, 0)
+      ) < 1.5
+    ) THEN '⛔️'
     WHEN ad_data_cte.total_spend BETWEEN 0 AND 50
     AND (
       CASE
@@ -51,29 +74,6 @@ SELECT
       PARTITION BY
         ad_data_cte.adset_name
     ) THEN '⚓️'
-    WHEN (
-      ad_data_cte.total_revenue / nullIf(ad_data_cte.total_spend, 0)
-    ) > 1.4
-    AND (
-      ad_data_cte.total_spend / nullIf(ad_data_cte.total_orders, 0)
-    ) < 80 THEN '🚀'
-    WHEN ad_data_cte.total_spend > 100
-    AND (
-      ad_data_cte.total_revenue / nullIf(ad_data_cte.total_spend, 0)
-    ) < 1.4
-    AND (
-      ad_data_cte.total_spend / nullIf(ad_data_cte.total_orders, 0)
-    ) < 80 THEN '☑️'
-    WHEN (
-      ad_data_cte.total_spend BETWEEN 50 AND 99
-      AND ad_data_cte.total_orders = 0
-    )
-    OR (
-      ad_data_cte.total_spend > 100
-      AND (
-        ad_data_cte.total_revenue / nullIf(ad_data_cte.total_spend, 0)
-      ) < 1.4
-    ) THEN '⛔️'
     ELSE '✅'
   END AS condition_indicator,
   ad_data_cte.total_spend AS spend,
