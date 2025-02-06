@@ -73,6 +73,10 @@ SELECT
   END AS roas,
   COALESCE(SUM(a.pixel_purchases_alias), 0) AS purchases,
   CASE
+    WHEN SUM(a.pixel_purchases_alias) = 0 THEN 0
+    ELSE SUM(a.total_spent_alias) / SUM(a.pixel_purchases_alias)
+  END AS cpa,
+  CASE
     WHEN SUM(a.total_outbound_clicks_alias) = 0 THEN 0
     ELSE SUM(a.total_spent_alias) / SUM(a.total_outbound_clicks_alias)
   END AS cost_per_link_click,
@@ -80,10 +84,6 @@ SELECT
     WHEN SUM(a.total_spent_alias) = 0 THEN 0
     ELSE SUM(a.cpc_alias * a.total_spent_alias) / SUM(a.total_spent_alias)
   END AS cpc,
-  CASE
-    WHEN SUM(a.pixel_purchases_alias) = 0 THEN 0
-    ELSE SUM(a.total_spent_alias) / SUM(a.pixel_purchases_alias)
-  END AS cpa,
   CASE
     WHEN SUM(a.pixel_purchases_alias) = 0 THEN 0
     ELSE SUM(a.pixel_aov_alias * a.pixel_purchases_alias) / SUM(a.pixel_purchases_alias)
