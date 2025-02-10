@@ -11,13 +11,13 @@ WITH
     FROM
       pixel_joined_tvf () AS pjt
     WHERE
-      pjt.channel = 'google-ads'
+      pjt.channel = 'facebook-ads'
       AND pjt.campaign_status = 'ACTIVE'
-      AND pjt.event_date BETWEEN '2025-01-30' AND '2025-02-04'
+      AND pjt.event_date BETWEEN '2025-02-07' AND '2025-02-10'
       AND pjt.model = 'Triple Attribution + Meta Views'
       AND (
-        pjt.campaign_name ilike '%YT%'
-        OR pjt.campaign_name ilike '%YT%'
+        pjt.campaign_name ilike '%%'
+        OR pjt.campaign_name ilike '%%'
       )
     GROUP BY
       pjt.campaign_name,
@@ -28,17 +28,17 @@ SELECT
   CASE
     WHEN (
       ad_data_cte.total_revenue / nullIf(ad_data_cte.total_spend, 0)
-    ) > 1.4
+    ) > 1.49
     AND (
       ad_data_cte.total_spend / nullIf(ad_data_cte.total_orders, 0)
-    ) < 80 THEN '🚀'
+    ) < 76 THEN '🚀'
     WHEN ad_data_cte.total_spend > 100
     AND (
       ad_data_cte.total_revenue / nullIf(ad_data_cte.total_spend, 0)
-    ) < 1.4
+    ) < 1.5
     AND (
       ad_data_cte.total_spend / nullIf(ad_data_cte.total_orders, 0)
-    ) < 80 THEN '🟪'
+    ) < 80 THEN '☑️'
     WHEN (
       ad_data_cte.total_spend BETWEEN 50 AND 99
       AND ad_data_cte.total_orders = 0
@@ -47,9 +47,9 @@ SELECT
       ad_data_cte.total_spend > 100
       AND (
         ad_data_cte.total_revenue / nullIf(ad_data_cte.total_spend, 0)
-      ) < 1.4
+      ) < 1.5
     ) THEN '⛔️'
-    ELSE '🟢'
+    ELSE '✅'
   END AS condition_indicator,
   ad_data_cte.total_spend AS spend,
   ad_data_cte.total_revenue / nullIf(ad_data_cte.total_spend, 0) AS pixel_roas,
