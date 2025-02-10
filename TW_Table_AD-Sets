@@ -19,6 +19,7 @@ WITH
       AND pjt.campaign_status = 'ACTIVE'
       AND pjt.event_date BETWEEN '2025-02-07' AND '2025-02-10'
       AND pjt.model = 'Triple Attribution + Meta Views'
+      AND pjt.campaign_name ilike '%%'      
     GROUP BY
       pjt.campaign_name,
       pjt.adset_name,
@@ -56,13 +57,13 @@ SELECT
     AND ad_data_cte.total_orders = 0
     AND (
       CASE
-        WHEN ad_data_cte.channel = 'facebook-ads' THEN ad_data_cte.total_spend / nullIf(ad_data_cte.total_outbound_clicks, 0)
-        WHEN ad_data_cte.channel = 'facebook-ads' THEN ad_data_cte.total_spend / nullIf(ad_data_cte.total_clicks, 0)
+        WHEN ad_data_cte.channel = 'google-ads' THEN ad_data_cte.total_spend / nullIf(ad_data_cte.total_outbound_clicks, 0)
+        WHEN ad_data_cte.channel = 'google-ads' THEN ad_data_cte.total_spend / nullIf(ad_data_cte.total_clicks, 0)
       END
     ) > 1.25 * AVG(
       CASE
-        WHEN ad_data_cte.channel = 'facebook-ads' THEN ad_data_cte.total_spend / nullIf(ad_data_cte.total_outbound_clicks, 0)
-        WHEN ad_data_cte.channel = 'facebook-ads' THEN ad_data_cte.total_spend / nullIf(ad_data_cte.total_clicks, 0)
+        WHEN ad_data_cte.channel = 'google-ads' THEN ad_data_cte.total_spend / nullIf(ad_data_cte.total_outbound_clicks, 0)
+        WHEN ad_data_cte.channel = 'google-ads' THEN ad_data_cte.total_spend / nullIf(ad_data_cte.total_clicks, 0)
       END
     ) OVER (
       PARTITION BY
@@ -88,4 +89,4 @@ SELECT
 FROM
   ad_data_cte
 ORDER BY
-  global_rank;
+  global_rank
