@@ -17,12 +17,13 @@ WITH
     WHERE
       pjt.channel = 'facebook-ads'
       AND pjt.ad_status = 'ACTIVE'
+      AND pjt.adset_status = 'ACTIVE'
       AND pjt.campaign_status = 'ACTIVE'
       AND pjt.event_date BETWEEN '2025-02-10' AND '2025-02-13'
       AND pjt.model = 'Triple Attribution + Meta Views'
       AND (
-        pjt.campaign_name ILIKE '%%'
-        OR pjt.campaign_name ILIKE '%%'
+        pjt.campaign_name ilike '%%'
+        OR pjt.campaign_name ilike '%%'
       )
     GROUP BY
       pjt.campaign_name,
