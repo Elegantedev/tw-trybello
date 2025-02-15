@@ -19,7 +19,7 @@ WITH
       AND pjt.ad_status = 'ACTIVE'
       AND pjt.adset_status = 'ACTIVE'
       AND pjt.campaign_status = 'ACTIVE'
-      AND pjt.event_date BETWEEN '2025-02-10' AND '2025-02-13'
+      AND pjt.event_date BETWEEN '2025-02-11' AND '2025-02-14'
       AND pjt.model = 'Triple Attribution + Meta Views'
       AND (
         pjt.campaign_name ilike '%%'
@@ -53,6 +53,9 @@ SELECT
     AND (
       ad_data_cte.total_revenue / nullIf(ad_data_cte.total_spend, 0)
     ) < 1.5
+    AND (
+      ad_data_cte.total_revenue / nullIf(ad_data_cte.total_spend, 0)
+    ) >= 1.3
     AND (
       ad_data_cte.total_spend / nullIf(ad_data_cte.total_orders, 0)
     ) < 76 THEN '☑️'
