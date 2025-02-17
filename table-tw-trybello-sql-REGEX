@@ -22,7 +22,7 @@ WITH
       AND pjt.channel = 'facebook-ads'
       AND pjt.model = 'Triple Attribution + Meta Views'
       AND pjt.campaign_name ILIKE '%%'
-      AND pjt.ad_name ILIKE '%A1 |S249 | V8%'
+      AND pjt.ad_name ILIKE '%%'
     GROUP BY
       pjt.ad_id,
       base_ad_name_alias
@@ -45,5 +45,3 @@ GROUP BY
   ad.base_ad_name_alias
 ORDER BY
   spent DESC
-LIMIT
-  1
