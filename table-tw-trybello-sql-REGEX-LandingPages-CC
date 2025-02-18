@@ -12,10 +12,10 @@ ad_data_cte AS (
   SELECT
     CASE
       WHEN LOWER(pjt.ad_name) LIKE '%a10%' THEN 'A10'
-      WHEN LOWER(pjt.ad_name) LIKE '%a1%' THEN 'A1'
-      WHEN LOWER(pjt.ad_name) LIKE '%a8%' THEN 'A8'
-      WHEN LOWER(pjt.ad_name) LIKE '%a5%' THEN 'A5'
-      WHEN LOWER(pjt.ad_name) LIKE '%a3%' THEN 'A3'
+      WHEN LOWER(pjt.ad_name) LIKE '%a1%'  THEN 'A1'
+      WHEN LOWER(pjt.ad_name) LIKE '%a8%'  THEN 'A8'
+      WHEN LOWER(pjt.ad_name) LIKE '%a5%'  THEN 'A5'
+      WHEN LOWER(pjt.ad_name) LIKE '%a3%'  THEN 'A3'
       WHEN LOWER(pjt.ad_name) LIKE '%a22%' THEN 'A22'
       WHEN LOWER(pjt.ad_name) LIKE '%a23%' THEN 'A23'
       WHEN LOWER(pjt.ad_name) LIKE '%a24%' THEN 'A24'
@@ -23,27 +23,29 @@ ad_data_cte AS (
     END AS group_keyword_alias,
     SUM(COALESCE(pjt.spend, 0)) AS total_spent_alias,
     SUM(COALESCE(pjt.order_revenue, 0)) 
-      / NULLIF(SUM(COALESCE(pjt.spend, 0)), 0) AS pixel_roas_alias,
+       / NULLIF(SUM(COALESCE(pjt.spend, 0)), 0) AS pixel_roas_alias,
     SUM(COALESCE(pjt.orders_quantity, 0)) AS pixel_purchases_alias,
     SUM(COALESCE(pjt.spend, 0)) 
-      / NULLIF(SUM(COALESCE(pjt.clicks, 0)), 0) AS cpc_alias,
+       / NULLIF(SUM(COALESCE(pjt.clicks, 0)), 0) AS cpc_alias,
     SUM(COALESCE(pjt.spend, 0)) 
-      / NULLIF(SUM(COALESCE(pjt.orders_quantity, 0)), 0) AS pixel_cpa_alias,
+       / NULLIF(SUM(COALESCE(pjt.orders_quantity, 0)), 0) AS pixel_cpa_alias,
     SUM(COALESCE(pjt.order_revenue, 0)) 
-      / NULLIF(SUM(COALESCE(pjt.orders_quantity, 0)), 0) AS pixel_aov_alias,
+       / NULLIF(SUM(COALESCE(pjt.orders_quantity, 0)), 0) AS pixel_aov_alias,
     SUM(COALESCE(pjt.spend, 0)) 
-      / NULLIF(SUM(COALESCE(pjt.impressions, 0)) / 1000, 0) AS cpm_alias,
+       / NULLIF(SUM(COALESCE(pjt.impressions, 0)) / 1000, 0) AS cpm_alias,
     SUM(COALESCE(pjt.clicks, 0)) 
-      / NULLIF(SUM(COALESCE(pjt.impressions, 0)), 0) AS ctr_all_alias,
+       / NULLIF(SUM(COALESCE(pjt.impressions, 0)), 0) AS ctr_all_alias,
     SUM(COALESCE(pjt.outbound_clicks, 0)) 
-      / NULLIF(SUM(COALESCE(pjt.impressions, 0)), 0) AS ctr_link_alias,
+       / NULLIF(SUM(COALESCE(pjt.impressions, 0)), 0) AS ctr_link_alias,
     SUM(COALESCE(pjt.outbound_clicks, 0)) AS total_outbound_clicks_alias
   FROM pixel_joined_tvf() AS pjt
-  WHERE
-    pjt.event_date BETWEEN '2025-02-04' AND '2025-02-16'
+  WHERE 
+        pjt.event_date BETWEEN '2025-02-04' AND '2025-02-16'
     AND pjt.channel = 'facebook-ads'
     AND pjt.model = 'Triple Attribution + Meta Views'
     AND pjt.campaign_name ILIKE '%%'
+    -- New condition to ensure the ad name also contains '#CC'
+    AND LOWER(pjt.ad_name) LIKE '%#cc%'
   GROUP BY group_keyword_alias
 )
 SELECT
@@ -83,6 +85,7 @@ SELECT
     ELSE SUM(a.ctr_link_alias * a.total_spent_alias) / SUM(a.total_spent_alias)
   END AS ctr_link
 FROM entities_cte AS e
-LEFT JOIN ad_data_cte AS a ON e.entity = a.group_keyword_alias
+LEFT JOIN ad_data_cte AS a 
+  ON e.entity = a.group_keyword_alias
 GROUP BY e.entity
 ORDER BY spent DESC;
