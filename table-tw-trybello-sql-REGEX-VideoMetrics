@@ -1,0 +1,28 @@
+SELECT
+  ad_name,
+  SUM(spend) AS total_spend,
+    COALESCE(
+    SUM(spend) / NULLIF(SUM(three_second_video_view), 0),
+    0
+  ) AS cost_per_three_sec_video_view,
+      COALESCE(
+    SUM(three_second_video_view) / NULLIF(SUM(impressions), 0),
+    0
+  ) AS hook_rate,
+    COALESCE(
+    SUM(thruplays) / NULLIF(SUM(three_second_video_view), 0),
+    0
+  ) AS hold_rate,
+  COALESCE(SUM(spend) / NULLIF(SUM(clicks), 0), 0) AS cpc,
+  COALESCE(SUM(spend) / NULLIF(SUM(outbound_clicks), 0), 0) AS cpoc,
+  COALESCE(SUM(clicks) / NULLIF(SUM(impressions), 0), 0) AS ctr,
+  SUM(thruplays) AS total_thruplays,
+  SUM(three_second_video_view) AS total_three_second_video_view
+FROM
+  ads_table
+WHERE
+  event_date BETWEEN '2025-02-15' AND '2025-02-21'
+  AND channel = 'facebook-ads'
+  AND campaign_name ILIKE '%SANDBOX%'
+GROUP BY
+  ad_name
