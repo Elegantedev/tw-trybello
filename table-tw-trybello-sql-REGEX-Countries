@@ -12,27 +12,35 @@ WITH ad_data_cte AS (
         SUM(COALESCE(pjt.clicks, 0)) / NULLIF(SUM(COALESCE(pjt.impressions, 0)), 0) AS ctr_all_alias,
         SUM(COALESCE(pjt.outbound_clicks, 0)) / NULLIF(SUM(COALESCE(pjt.impressions, 0)), 0) AS ctr_link_alias,
         SUM(COALESCE(pjt.outbound_clicks, 0)) AS total_outbound_clicks_alias,
-CASE
-    WHEN LOWER(pjt.campaign_name) LIKE '%uae+qat%' THEN 'UAE+QAT'
-    WHEN LOWER(pjt.campaign_name) LIKE '%uae%' THEN 'UAE'
-    WHEN LOWER(pjt.campaign_name) LIKE '%qat%' THEN 'QAT'
-    WHEN LOWER(pjt.campaign_name) LIKE '%us-ca%' THEN 'US-CA'
-    WHEN LOWER(pjt.campaign_name) LIKE '%usa%' 
-         OR (LOWER(pjt.campaign_name) LIKE '%us%' AND LOWER(pjt.campaign_name) NOT LIKE '%us-ca%') THEN 'USA'
-    WHEN LOWER(pjt.campaign_name) LIKE '%uk%' THEN 'UK'
-    WHEN LOWER(pjt.campaign_name) LIKE '%au%' THEN 'AU'
-    WHEN LOWER(pjt.campaign_name) LIKE '%israel%' THEN 'IL'
-    WHEN LOWER(pjt.campaign_name) LIKE '%sg%' THEN 'SG'
-    WHEN LOWER(pjt.campaign_name) LIKE '%europe%' OR LOWER(pjt.campaign_name) LIKE '%eu%' THEN 'EUROPE'
-    ELSE 'Other'
-END AS campaign_label
+        CASE
+            WHEN LOWER(pjt.campaign_name) LIKE '%big4%' THEN 'BIG4'
+            WHEN LOWER(pjt.campaign_name) LIKE '%uk-ir%' THEN 'UK-IR'
+            WHEN LOWER(pjt.campaign_name) LIKE '%uae+qat%' THEN 'UAE+QAT'
+            WHEN LOWER(pjt.campaign_name) LIKE '%uae%' THEN 'UAE'
+            WHEN LOWER(pjt.campaign_name) LIKE '%qat%' THEN 'QAT'
+            WHEN LOWER(pjt.campaign_name) LIKE '%us-ca%' 
+                 OR LOWER(pjt.campaign_name) LIKE '%usa-ca%' THEN 'US-CA'
+            WHEN LOWER(pjt.campaign_name) LIKE '%usa%' 
+                 OR (LOWER(pjt.campaign_name) LIKE '%us%' 
+                     AND LOWER(pjt.campaign_name) NOT LIKE '%us-ca%' 
+                     AND LOWER(pjt.campaign_name) NOT LIKE '%usa-ca%') THEN 'USA'
+            WHEN LOWER(pjt.campaign_name) LIKE '%uk%' THEN 'UK'
+            WHEN LOWER(pjt.campaign_name) LIKE '%au%' THEN 'AU'
+            WHEN LOWER(pjt.campaign_name) LIKE '% ca %' 
+                 OR LOWER(pjt.campaign_name) LIKE '% ca' THEN 'CA'
+            WHEN LOWER(pjt.campaign_name) LIKE '%israel%' THEN 'IL'
+            WHEN LOWER(pjt.campaign_name) LIKE '%sg%' THEN 'SG'
+            WHEN LOWER(pjt.campaign_name) LIKE '%europe%' 
+                 OR LOWER(pjt.campaign_name) LIKE '%eu%' THEN 'EUROPE'
+            ELSE 'Other'
+        END AS campaign_label
     FROM 
         pixel_joined_tvf() AS pjt
     WHERE 
-        pjt.event_date BETWEEN '2025-02-04' AND '2025-02-16'
+        pjt.event_date BETWEEN '2025-02-17' AND '2025-02-23'
         AND pjt.channel = 'google-ads'
-        AND pjt.model = 'Triple Attribution + Meta Views'
-        AND pjt.campaign_name ILIKE '%%'
+        AND pjt.model = 'Triple Attribution'
+        AND pjt.campaign_name ILIKE '%yt%'
         AND pjt.ad_name ILIKE '%%'
     GROUP BY 
         pjt.ad_id, base_ad_name_alias, campaign_label
