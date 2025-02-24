@@ -1,15 +1,15 @@
 SELECT
-  ad_name,
+  UPPER(REGEXP_REPLACE(ad_name, ' - Copy( \\d+)?$', '')) AS base_ad_name,
   SUM(spend) AS total_spend,
-    COALESCE(
+  COALESCE(
     SUM(spend) / NULLIF(SUM(three_second_video_view), 0),
     0
   ) AS cost_per_three_sec_video_view,
-      COALESCE(
+  COALESCE(
     SUM(three_second_video_view) / NULLIF(SUM(impressions), 0),
     0
   ) AS hook_rate,
-    COALESCE(
+  COALESCE(
     SUM(thruplays) / NULLIF(SUM(three_second_video_view), 0),
     0
   ) AS hold_rate,
@@ -21,8 +21,8 @@ SELECT
 FROM
   ads_table
 WHERE
-  event_date BETWEEN '2025-02-15' AND '2025-02-21'
+  event_date BETWEEN '2025-02-17' AND '2025-02-23'
   AND channel = 'facebook-ads'
-  AND campaign_name ILIKE '%SANDBOX%'
+  AND campaign_name ILIKE '%%'
 GROUP BY
-  ad_name
+  UPPER(REGEXP_REPLACE(ad_name, ' - Copy( \\d+)?$', ''))
