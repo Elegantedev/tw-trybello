@@ -18,9 +18,10 @@ WITH
     FROM
       pixel_joined_tvf () AS pjt
     WHERE
-      pjt.event_date BETWEEN '2025-01-24' AND '2025-02-03'
+      pjt.event_date BETWEEN '2025-01-24' AND '2025-02-28'
       AND pjt.channel = 'facebook-ads'
-      AND pjt.model = 'Triple Attribution + Meta Views'
+      AND pjt.model = 'Triple Attribution'
+      AND pjt.campaign_name ILIKE '%SCALE%'
       AND pjt.campaign_name ILIKE '%%'
       AND pjt.ad_name ILIKE '%%'
     GROUP BY
