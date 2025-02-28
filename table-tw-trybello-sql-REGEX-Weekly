@@ -1,0 +1,64 @@
+WITH
+  ad_data_cte AS (
+    SELECT
+      toMonday (pjt.event_date) AS week,
+      pjt.ad_id AS ad_id_alias,
+      UPPER(
+        REGEXP_REPLACE(pjt.ad_name, ' - Copy( \\d+)?$', '')
+      ) AS base_ad_name_alias,
+      SUM(COALESCE(pjt.spend, 0)) AS total_spent_alias,
+      SUM(COALESCE(pjt.order_revenue, 0)) / NULLIF(SUM(COALESCE(pjt.spend, 0)), 0) AS pixel_roas_alias,
+      SUM(COALESCE(pjt.orders_quantity, 0)) AS pixel_purchases_alias,
+      SUM(COALESCE(pjt.spend, 0)) / NULLIF(SUM(COALESCE(pjt.clicks, 0)), 0) AS cpc_alias,
+      SUM(COALESCE(pjt.spend, 0)) / NULLIF(SUM(COALESCE(pjt.orders_quantity, 0)), 0) AS pixel_cpa_alias,
+      SUM(COALESCE(pjt.order_revenue, 0)) / NULLIF(SUM(COALESCE(pjt.orders_quantity, 0)), 0) AS pixel_aov_alias,
+      SUM(COALESCE(pjt.spend, 0)) / NULLIF(SUM(COALESCE(pjt.impressions, 0)) / 1000, 0) AS cpm_alias,
+      SUM(COALESCE(pjt.clicks, 0)) / NULLIF(SUM(COALESCE(pjt.impressions, 0)), 0) AS ctr_all_alias,
+      SUM(COALESCE(pjt.outbound_clicks, 0)) / NULLIF(SUM(COALESCE(pjt.impressions, 0)), 0) AS ctr_link_alias,
+      SUM(COALESCE(pjt.outbound_clicks, 0)) AS total_outbound_clicks_alias
+    FROM
+      pixel_joined_tvf () AS pjt
+    WHERE
+      pjt.event_date BETWEEN toMonday (CURRENT_DATE()) - INTERVAL 4 WEEK AND CURRENT_DATE()
+      AND pjt.channel = 'facebook-ads'
+      AND pjt.model = 'Triple Attribution'
+      AND pjt.campaign_name ILIKE '%SCALE%'
+      AND pjt.campaign_name ILIKE '%%'
+      AND pjt.ad_name ILIKE '%%'
+    GROUP BY
+      week,
+      pjt.ad_id,
+      base_ad_name_alias
+  ),
+  ad_total_cte AS (
+    SELECT
+      base_ad_name_alias,
+      SUM(total_spent_alias) AS overall_spent
+    FROM
+      ad_data_cte
+    GROUP BY
+      base_ad_name_alias
+  )
+SELECT
+  ad.week,
+  ad.base_ad_name_alias AS ad_name,
+  SUM(ad.total_spent_alias) AS spent,
+  SUM(ad.pixel_roas_alias * ad.total_spent_alias) / SUM(ad.total_spent_alias) AS roas,
+  SUM(ad.pixel_purchases_alias) AS purchases,
+  SUM(ad.total_spent_alias) / NULLIF(SUM(ad.total_outbound_clicks_alias), 0) AS cost_per_link_click,
+  SUM(ad.cpc_alias * ad.total_spent_alias) / SUM(ad.total_spent_alias) AS cpc,
+  SUM(ad.total_spent_alias) / NULLIF(SUM(ad.pixel_purchases_alias), 0) AS cpa,
+  SUM(ad.pixel_aov_alias * ad.pixel_purchases_alias) / NULLIF(SUM(ad.pixel_purchases_alias), 0) AS aov,
+  SUM(ad.cpm_alias * ad.total_spent_alias) / SUM(ad.total_spent_alias) AS cpm,
+  SUM(ad.ctr_all_alias * ad.total_spent_alias) / SUM(ad.total_spent_alias) AS ctr_all,
+  SUM(ad.ctr_link_alias * ad.total_spent_alias) / SUM(ad.total_spent_alias) AS ctr_link
+FROM
+  ad_data_cte AS ad
+  INNER JOIN ad_total_cte AS tot ON ad.base_ad_name_alias = tot.base_ad_name_alias
+GROUP BY
+  ad.base_ad_name_alias,
+  tot.overall_spent,
+  ad.week
+ORDER BY
+  tot.overall_spent DESC,
+  ad.week DESC;
