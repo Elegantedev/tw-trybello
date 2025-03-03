@@ -31,8 +31,8 @@ WHERE
   AND pjt.channel = 'facebook-ads'
   AND pjt.campaign_name ILIKE '%%'
   AND pjt.campaign_name ILIKE '%%'
-  AND pjt.campaign_name ILIKE '%cbo%'
-  AND pjt.event_date BETWEEN CURRENT_DATE() - INTERVAL 27 DAY AND CURRENT_DATE()
+  AND pjt.campaign_name ILIKE '%%'
+  AND pjt.event_date BETWEEN CURRENT_DATE() - INTERVAL 4 WEEK AND CURRENT_DATE()
 GROUP BY
   pjt.event_date
 ORDER BY
