@@ -1,0 +1,39 @@
+SELECT
+  pjt.event_date,
+  formatDateTime (pjt.event_date, '%a') AS day_of_week,
+  COALESCE(SUM(pjt.spend), 0) AS spend,
+  COALESCE(
+    SUM(pjt.order_revenue) / NULLIF(SUM(pjt.spend), 0),
+    0
+  ) AS roas,
+  COALESCE(
+    SUM(pjt.spend) / NULLIF(SUM(pjt.orders_quantity), 0),
+    0
+  ) AS cpa,
+  COALESCE(SUM(pjt.orders_quantity), 0) AS purchases,
+  COALESCE(
+    SUM(pjt.order_revenue) / NULLIF(SUM(pjt.orders_quantity), 0),
+    0
+  ) AS aov,
+  COALESCE(
+    SUM(pjt.spend) / NULLIF(SUM(pjt.outbound_clicks), 0),
+    0
+  ) AS outbound_cpc_link,
+  COALESCE(SUM(pjt.spend) / NULLIF(SUM(pjt.clicks), 0), 0) AS cpc_all,
+  COALESCE(
+    (SUM(pjt.spend) / NULLIF(SUM(pjt.impressions), 0)) * 1000,
+    0
+  ) AS cpm
+FROM
+  pixel_joined_tvf () AS pjt
+WHERE
+  pjt.model = 'Triple Attribution'
+  AND pjt.channel = 'facebook-ads'
+  AND pjt.campaign_name ILIKE '%%'
+  AND pjt.campaign_name ILIKE '%%'
+  AND pjt.campaign_name ILIKE '%cbo%'
+  AND pjt.event_date BETWEEN CURRENT_DATE() - INTERVAL 27 DAY AND CURRENT_DATE()
+GROUP BY
+  pjt.event_date
+ORDER BY
+  pjt.event_date DESC;
