@@ -25,6 +25,7 @@ WITH
       AND pjt.campaign_name ILIKE '%SCALE%'
       AND pjt.campaign_name ILIKE '%%'
       AND pjt.ad_name ILIKE '%%'
+      AND pjt.attribution_window = '1_day'
     GROUP BY
       week,
       pjt.ad_id,
