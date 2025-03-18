@@ -1,0 +1,35 @@
+SELECT
+  pjt.campaign_status,
+  pjt.campaign_name,
+  CASE
+    WHEN COUNT(
+      DISTINCT CASE
+        WHEN pjt.adset_status = 'ACTIVE' THEN pjt.adset_id
+      END
+    ) > 1 THEN '✅'
+    ELSE '❌'
+  END AS multiple_adsets_indicator,
+  COUNT(
+    DISTINCT CASE
+      WHEN pjt.adset_status = 'ACTIVE' THEN pjt.adset_id
+    END
+  ) AS active_adsets_count,
+  COUNT(
+    DISTINCT CASE
+      WHEN pjt.ad_status = 'ACTIVE' THEN pjt.ad_id
+    END
+  ) AS active_ads_count
+FROM
+  pixel_joined_tvf () AS pjt
+WHERE
+  pjt.channel = 'facebook-ads'
+  AND pjt.campaign_status = 'ACTIVE'
+  AND pjt.event_date BETWEEN CURRENT_DATE() - 7 AND CURRENT_DATE()  - 1
+  AND pjt.model = 'Triple Attribution'
+GROUP BY
+  pjt.campaign_status,
+  pjt.campaign_name,
+  pjt.campaign_id
+ORDER BY
+  pjt.campaign_status,
+  pjt.campaign_name
