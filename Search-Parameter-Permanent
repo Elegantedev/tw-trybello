@@ -1,0 +1,6 @@
+ADd this under the Where clause to make the search parameters Permanent:
+
+      AND (
+        TRUE
+        OR TRUE
+      )
