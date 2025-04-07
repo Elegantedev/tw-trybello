@@ -1,0 +1,55 @@
+WITH
+  campaign_data_cte AS (
+    SELECT
+      pjt.campaign_id AS campaign_id_alias,
+      UPPER(
+        REGEXP_REPLACE(pjt.campaign_name, ' - Copy( \\d+)?$', '')
+      ) AS base_campaign_name_alias,
+      SUM(COALESCE(pjt.spend, 0)) AS total_spent_alias,
+      SUM(COALESCE(pjt.order_revenue, 0)) / NULLIF(SUM(COALESCE(pjt.spend, 0)), 0) AS pixel_roas_alias,
+      SUM(COALESCE(pjt.orders_quantity, 0)) AS pixel_purchases_alias,
+      SUM(COALESCE(pjt.spend, 0)) / NULLIF(SUM(COALESCE(pjt.clicks, 0)), 0) AS cpc_alias,
+      SUM(COALESCE(pjt.spend, 0)) / NULLIF(SUM(COALESCE(pjt.orders_quantity, 0)), 0) AS pixel_cpa_alias,
+      SUM(COALESCE(pjt.order_revenue, 0)) / NULLIF(SUM(COALESCE(pjt.orders_quantity, 0)), 0) AS pixel_aov_alias,
+      SUM(COALESCE(pjt.spend, 0)) / NULLIF(SUM(COALESCE(pjt.impressions, 0)) / 1000, 0) AS cpm_alias,
+      SUM(COALESCE(pjt.clicks, 0)) / NULLIF(SUM(COALESCE(pjt.impressions, 0)), 0) AS ctr_all_alias,
+      SUM(COALESCE(pjt.outbound_clicks, 0)) / NULLIF(SUM(COALESCE(pjt.impressions, 0)), 0) AS ctr_link_alias,
+      SUM(COALESCE(pjt.outbound_clicks, 0)) AS total_outbound_clicks_alias
+    FROM
+      pixel_joined_tvf () AS pjt
+    WHERE
+      pjt.event_date BETWEEN '2025-04-06' AND '2025-04-06'
+      AND pjt.channel = 'facebook-ads'
+      AND pjt.model = 'Triple Attribution'
+      AND pjt.campaign_name ILIKE '%%'
+      AND pjt.attribution_window = '1_day'
+    GROUP BY
+      pjt.campaign_id,
+      base_campaign_name_alias
+  )
+SELECT
+  campaign.base_campaign_name_alias AS campaign_name,
+  SUM(campaign.total_spent_alias) AS spent,
+  SUM(
+    campaign.pixel_roas_alias * campaign.total_spent_alias
+  ) / SUM(campaign.total_spent_alias) AS roas,
+  SUM(campaign.pixel_purchases_alias) AS purchases,
+  SUM(campaign.total_spent_alias) / NULLIF(SUM(campaign.total_outbound_clicks_alias), 0) AS cost_per_link_click,
+  SUM(campaign.cpc_alias * campaign.total_spent_alias) / SUM(campaign.total_spent_alias) AS cpc,
+  SUM(campaign.total_spent_alias) / NULLIF(SUM(campaign.pixel_purchases_alias), 0) AS cpa,
+  SUM(
+    campaign.pixel_aov_alias * campaign.pixel_purchases_alias
+  ) / NULLIF(SUM(campaign.pixel_purchases_alias), 0) AS aov,
+  SUM(campaign.cpm_alias * campaign.total_spent_alias) / SUM(campaign.total_spent_alias) AS cpm,
+  SUM(
+    campaign.ctr_all_alias * campaign.total_spent_alias
+  ) / SUM(campaign.total_spent_alias) AS ctr_all,
+  SUM(
+    campaign.ctr_link_alias * campaign.total_spent_alias
+  ) / SUM(campaign.total_spent_alias) AS ctr_link
+FROM
+  campaign_data_cte AS campaign
+GROUP BY
+  campaign.base_campaign_name_alias
+ORDER BY
+  spent DESC;
