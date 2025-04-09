@@ -13,9 +13,9 @@ WITH
     WHERE
       pjt.channel = 'facebook-ads'
       AND pjt.campaign_status = 'ACTIVE'
-      AND pjt.event_date BETWEEN '2025-02-16' AND '2025-02-19'
-      AND pjt.model = 'Triple Attribution + Meta Views'
-      AND pjt.campaign_name ilike '%%'
+      AND pjt.event_date BETWEEN '2025-04-06' AND '2025-04-09'
+      AND pjt.model = 'Triple Attribution'
+      AND pjt.campaign_name ilike '%scale%'
     GROUP BY
       pjt.campaign_name,
       pjt.campaign_status
@@ -23,12 +23,15 @@ WITH
 SELECT
   ad_data_cte.campaign_name AS campaign_name,
   CASE
+    -- 🚀 High performance
     WHEN (
       ad_data_cte.total_revenue / nullIf(ad_data_cte.total_spend, 0)
     ) > 1.49
     AND (
       ad_data_cte.total_spend / nullIf(ad_data_cte.total_orders, 0)
     ) < 76 THEN '🚀'
+
+    -- ☑️ Good performance
     WHEN ad_data_cte.total_spend > 100
     AND (
       ad_data_cte.total_revenue / nullIf(ad_data_cte.total_spend, 0)
@@ -39,16 +42,22 @@ SELECT
     AND (
       ad_data_cte.total_spend / nullIf(ad_data_cte.total_orders, 0)
     ) < 76 THEN '☑️'
-    WHEN (
-      ad_data_cte.total_spend BETWEEN 44 AND 99
-      AND ad_data_cte.total_orders = 0
-    )
-    OR (
-      ad_data_cte.total_spend > 100
-      AND (
-        ad_data_cte.total_revenue / nullIf(ad_data_cte.total_spend, 0)
-      ) < 1.5
-    ) THEN '⛔️'
+
+    -- ⛔️ Rule A: Over $100 but not enough purchases
+    WHEN ad_data_cte.total_spend > 100
+    AND ad_data_cte.total_orders < 2 THEN '⛔️'
+
+    -- ⛔️ Rule B: Over $100 but bad ROAS
+    WHEN ad_data_cte.total_spend > 100
+    AND (
+      ad_data_cte.total_revenue / nullIf(ad_data_cte.total_spend, 0)
+    ) < 1.2 THEN '⛔️'
+
+    -- ⛔️ Spend $44–99 with 0 purchases
+    WHEN ad_data_cte.total_spend BETWEEN 44 AND 99
+    AND ad_data_cte.total_orders = 0 THEN '⛔️'
+
+    -- ✅ Everything else
     ELSE '✅'
   END AS condition_indicator,
   ad_data_cte.total_spend AS spend,
