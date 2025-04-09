@@ -36,13 +36,14 @@ SELECT
   ad_data_cte.campaign_name AS campaign_name,
   ad_data_cte.adset_name AS adset_name,
   ad_data_cte.ad_name AS ad_name,
-  CASE
+ CASE
   -- 🔴 Rule: Low spend with 0 purchases → flag early failures
   WHEN ad_data_cte.total_spend BETWEEN 42 AND 99
     AND ad_data_cte.total_orders = 0 THEN '⛔️'
 
-  -- 🔴 Rule: High ROAS but high CPA (only if there *are* purchases)
-  WHEN (ad_data_cte.total_revenue / nullIf(ad_data_cte.total_spend, 0)) > 1.5
+  -- 🔴 Rule: High ROAS + high CPA → Only if spend > $100
+  WHEN ad_data_cte.total_spend > 100
+    AND (ad_data_cte.total_revenue / nullIf(ad_data_cte.total_spend, 0)) > 1.5
     AND (ad_data_cte.total_spend / nullIf(ad_data_cte.total_orders, 0)) > 80 THEN '⛔️'
 
   -- 🚀 Rule: Very good ROAS & CPA
