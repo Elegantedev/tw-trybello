@@ -71,14 +71,16 @@ SELECT
       AND ad_data_cte.total_orders = 0
     )
 
--- 🔴 3. Spend > $90 and ROAS < 1.2 and Orders < 2
-OR (
-  ad_data_cte.total_spend > 90
-  AND (
-    ad_data_cte.total_revenue / nullIf(ad_data_cte.total_spend, 0)
-  ) < 1.2
-  AND ad_data_cte.total_orders < 2
-) THEN '⛔️'
+
+-- ⛔️ Rule A: Over $100, but not enough purchases
+WHEN ad_data_cte.total_spend > 100
+AND ad_data_cte.total_orders < 2 THEN '⛔️'
+
+-- ⛔️ Rule B: Over $100, enough purchases maybe, but bad ROAS
+WHEN ad_data_cte.total_spend > 100
+AND (
+  ad_data_cte.total_revenue / nullIf(ad_data_cte.total_spend, 0)
+) < 1.2 THEN '⛔️'
 
 
     -- 🔴 New: Spend > $150 and orders < 3
