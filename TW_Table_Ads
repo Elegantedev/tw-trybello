@@ -19,7 +19,7 @@ WITH
       AND pjt.ad_status = 'ACTIVE'
       AND pjt.adset_status = 'ACTIVE'
       AND pjt.campaign_status = 'ACTIVE'
-      AND pjt.event_date BETWEEN '2025-04-06' AND '2025-04-09'
+      AND pjt.event_date BETWEEN '2025-04-05' AND '2025-04-09'
       AND pjt.model = 'Triple Attribution'
       AND (
         pjt.campaign_name ilike '%scale%'
@@ -36,24 +36,19 @@ SELECT
   ad_data_cte.campaign_name AS campaign_name,
   ad_data_cte.adset_name AS adset_name,
   ad_data_cte.ad_name AS ad_name,
-   CASE
-    -- 🔴 1. High ROAS but very high CPA → CPA > 80
+  CASE
     WHEN (
       ad_data_cte.total_revenue / nullIf(ad_data_cte.total_spend, 0)
     ) > 1.5
     AND (
       ad_data_cte.total_spend / nullIf(ad_data_cte.total_orders, 0)
     ) > 80 THEN '⛔️'
-
-    -- 🚀 4. High performance → ROAS > 1.4 and CPA < 75
     WHEN (
       ad_data_cte.total_revenue / nullIf(ad_data_cte.total_spend, 0)
     ) > 1.4
     AND (
       ad_data_cte.total_spend / nullIf(ad_data_cte.total_orders, 0)
     ) < 75 THEN '🚀'
-
-    -- ☑️ Good performance, kept as-is
     WHEN ad_data_cte.total_spend > 100
     AND (
       ad_data_cte.total_revenue / nullIf(ad_data_cte.total_spend, 0)
@@ -64,40 +59,26 @@ SELECT
     AND (
       ad_data_cte.total_spend / nullIf(ad_data_cte.total_orders, 0)
     ) < 76 THEN '☑️'
-
-    -- 🔴 2. Spend is between $42–$99 and zero purchases
     WHEN (
       ad_data_cte.total_spend BETWEEN 42 AND 99
       AND ad_data_cte.total_orders = 0
     )
-
-
--- ⛔️ Rule A: Over $100, but not enough purchases
-WHEN ad_data_cte.total_spend > 100
-AND ad_data_cte.total_orders < 2 THEN '⛔️'
-
--- ⛔️ Rule B: Over $100, enough purchases maybe, but bad ROAS
-WHEN ad_data_cte.total_spend > 100
-AND (
-  ad_data_cte.total_revenue / nullIf(ad_data_cte.total_spend, 0)
-) < 1.2 THEN '⛔️'
-
-
-    -- 🔴 New: Spend > $150 and orders < 3
+    OR (
+      ad_data_cte.total_spend > 90
+      AND (
+        ad_data_cte.total_revenue / nullIf(ad_data_cte.total_spend, 0)
+      ) < 1.2
+      AND ad_data_cte.total_orders < 2
+    ) THEN '⛔️'
     WHEN ad_data_cte.total_spend > 150
     AND ad_data_cte.total_orders < 3 THEN '⛔️'
-
-    -- ⚓️ 5. Low spend, expensive CPC (CPC ALL > 1.49)
     WHEN ad_data_cte.total_spend BETWEEN 0 AND 45
     AND ad_data_cte.total_orders = 0
     AND (
       ad_data_cte.total_spend / nullIf(ad_data_cte.total_clicks, 0)
     ) > 1.49 THEN '⚓️'
-
-    -- ✅ Everything else
     ELSE '✅'
   END AS condition_indicator,
-
   ad_data_cte.total_spend AS spend,
   ad_data_cte.total_revenue / nullIf(ad_data_cte.total_spend, 0) AS pixel_roas,
   ad_data_cte.total_orders AS orders_quantity,
