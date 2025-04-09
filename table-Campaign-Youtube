@@ -11,11 +11,12 @@ WITH
     FROM
       pixel_joined_tvf () AS pjt
     WHERE
-      pjt.channel = 'facebook-ads'
-      AND pjt.campaign_status = 'ACTIVE'
+      pjt.campaign_status = 'ACTIVE'
       AND pjt.event_date BETWEEN '2025-04-05' AND '2025-04-09'
       AND pjt.model = 'Triple Attribution'
-      AND pjt.campaign_name ilike '%scale%'
+      AND pjt.channel IN ('facebook-ads', 'google-ads')
+      AND pjt.campaign_name ILIKE '%yt%'
+      AND pjt.campaign_name ILIKE '%conv%'
     GROUP BY
       pjt.campaign_name,
       pjt.campaign_status
@@ -23,30 +24,37 @@ WITH
 SELECT
   ad_data_cte.campaign_name AS campaign_name,
   CASE
-    WHEN (
-      ad_data_cte.total_revenue / nullIf(ad_data_cte.total_spend, 0)
-    ) > 1.49
-    AND (
-      ad_data_cte.total_spend / nullIf(ad_data_cte.total_orders, 0)
-    ) < 76 THEN '🚀'
-    WHEN ad_data_cte.total_spend > 100
-    AND (
-      ad_data_cte.total_revenue / nullIf(ad_data_cte.total_spend, 0)
-    ) < 1.5
-    AND (
-      ad_data_cte.total_revenue / nullIf(ad_data_cte.total_spend, 0)
-    ) >= 1.3
-    AND (
-      ad_data_cte.total_spend / nullIf(ad_data_cte.total_orders, 0)
-    ) < 76 THEN '☑️'
-    WHEN ad_data_cte.total_spend > 100
-    AND ad_data_cte.total_orders < 2 THEN '⛔️'
-    WHEN ad_data_cte.total_spend > 100
-    AND (
-      ad_data_cte.total_revenue / nullIf(ad_data_cte.total_spend, 0)
-    ) < 1.2 THEN '⛔️'
-    WHEN ad_data_cte.total_spend BETWEEN 44 AND 99
-    AND ad_data_cte.total_orders = 0 THEN '⛔️'
+    -- 📦 Group A: Campaigns that include 'scale'
+    WHEN ad_data_cte.campaign_name ILIKE '%scale%' THEN
+      CASE
+        WHEN (ad_data_cte.total_revenue / nullIf(ad_data_cte.total_spend, 0)) > 1.5
+          AND (ad_data_cte.total_spend / nullIf(ad_data_cte.total_orders, 0)) > 80 THEN '⛔️'
+        WHEN (ad_data_cte.total_revenue / nullIf(ad_data_cte.total_spend, 0)) > 1.4
+          AND (ad_data_cte.total_spend / nullIf(ad_data_cte.total_orders, 0)) < 75 THEN '🚀'
+        WHEN ad_data_cte.total_spend > 100
+          AND (ad_data_cte.total_revenue / nullIf(ad_data_cte.total_spend, 0)) < 1.5
+          AND (ad_data_cte.total_revenue / nullIf(ad_data_cte.total_spend, 0)) >= 1.3
+          AND (ad_data_cte.total_spend / nullIf(ad_data_cte.total_orders, 0)) < 76 THEN '☑️'
+        WHEN ad_data_cte.total_spend BETWEEN 42 AND 99
+          AND ad_data_cte.total_orders = 0 THEN '⛔️'
+        WHEN ad_data_cte.total_spend > 100
+          AND ad_data_cte.total_orders < 2 THEN '⛔️'
+        WHEN ad_data_cte.total_spend > 100
+          AND (ad_data_cte.total_revenue / nullIf(ad_data_cte.total_spend, 0)) < 1.2 THEN '⛔️'
+        WHEN ad_data_cte.total_spend > 150
+          AND ad_data_cte.total_orders < 3 THEN '⛔️'
+        ELSE '✅'
+      END
+
+    -- 🧠 Group B: Only creative-related logic
+    WHEN ad_data_cte.campaign_name ILIKE '%creative%' THEN
+      CASE
+        WHEN ad_data_cte.total_spend > 180
+          AND ad_data_cte.total_orders < 1 THEN '⛔️'
+        ELSE '✅'
+      END
+
+    -- 🌐 Everything else
     ELSE '✅'
   END AS condition_indicator,
   ad_data_cte.total_spend AS spend,
@@ -55,9 +63,7 @@ SELECT
   ad_data_cte.total_spend / nullIf(ad_data_cte.total_clicks, 0) AS cpc,
   ad_data_cte.total_spend / nullIf(ad_data_cte.total_orders, 0) AS pixel_cpa,
   ad_data_cte.total_revenue / nullIf(ad_data_cte.total_orders, 0) AS pixel_aov,
-  (
-    ad_data_cte.total_spend / nullIf(ad_data_cte.total_impressions, 0)
-  ) * 1000 AS cpm,
+  (ad_data_cte.total_spend / nullIf(ad_data_cte.total_impressions, 0)) * 1000 AS cpm,
   ad_data_cte.campaign_status AS campaign_status,
   ROW_NUMBER() OVER (
     ORDER BY
