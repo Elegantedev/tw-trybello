@@ -1,78 +1,91 @@
--- ✅ Revival Candidates Table: Shows Ads/Ad Sets currently OFF but eligible to be turned ON based on performance
-
-WITH base_data AS (
-  SELECT
-    pjt.campaign_name,
-    pjt.adset_name,
-    pjt.ad_name,
-    pjt.channel,
-    SUM(pjt.spend) AS spend,
-    SUM(pjt.order_revenue) AS revenue,
-    SUM(pjt.orders_quantity) AS purchases,
-    SUM(pjt.clicks) AS clicks,
-    SUM(pjt.impressions) AS impressions,
-    pjt.campaign_status,
-    pjt.adset_status,
-    pjt.ad_status,
-    CASE
-      WHEN pjt.ad_name IS NOT NULL THEN 'Ad'
-      WHEN pjt.adset_name IS NOT NULL THEN 'Ad Set'
-      ELSE 'Campaign'
-    END AS level,
-    CASE
-      WHEN pjt.channel = 'facebook-ads' THEN 1
-      ELSE 2
-    END AS platform_sort
-  FROM pixel_joined_tvf() pjt
-  WHERE pjt.event_date BETWEEN '2025-04-06' AND '2025-04-10'
-    AND pjt.model = 'Triple Attribution'
-    AND (
-      pjt.campaign_name ILIKE '%scale%'
-      OR pjt.campaign_name ILIKE '%sandbox%'
-      OR pjt.campaign_name ILIKE '%creative%'
-    )
-  GROUP BY
-    pjt.campaign_name, pjt.adset_name, pjt.ad_name,
-    pjt.channel, pjt.campaign_status, pjt.adset_status, pjt.ad_status
-),
-
-campaign_perf AS (
-  SELECT DISTINCT
-    campaign_name, channel,
-    SUM(spend) AS campaign_spend,
-    SUM(purchases) AS campaign_purchases,
-    SUM(revenue) AS campaign_revenue
-  FROM base_data
-  GROUP BY campaign_name, channel
-),
-
-adset_perf AS (
-  SELECT DISTINCT
-    campaign_name, adset_name, channel,
-    SUM(spend) AS adset_spend,
-    SUM(purchases) AS adset_purchases,
-    SUM(revenue) AS adset_revenue
-  FROM base_data
-  WHERE adset_name IS NOT NULL
-  GROUP BY campaign_name, adset_name, channel
-),
-
-ranked_groups AS (
-  SELECT DISTINCT
-    campaign_name,
-    DENSE_RANK() OVER (ORDER BY campaign_name) AS group_rank
-  FROM base_data
-),
-
-emoji_palette AS (
-  SELECT 0 AS id, '🔵' AS emoji UNION ALL
-  SELECT 1, '🟣' UNION ALL
-  SELECT 2, '🟡' UNION ALL
-  SELECT 3, '⚫️' UNION ALL
-  SELECT 4, '🟠' UNION ALL
-  SELECT 5, '🟤'
-)
-
+WITH
+  base_data AS (
+    SELECT
+      pjt.campaign_name,
+      pjt.adset_name,
+      pjt.ad_name,
+      pjt.channel,
+      SUM(pjt.spend) AS spend,
+      SUM(pjt.order_revenue) AS revenue,
+      SUM(pjt.orders_quantity) AS purchases,
+      SUM(pjt.clicks) AS clicks,
+      SUM(pjt.impressions) AS impressions,
+      pjt.campaign_status,
+      pjt.adset_status,
+      pjt.ad_status,
+      CASE
+        WHEN NOT pjt.ad_name IS NULL THEN 'Ad'
+        WHEN NOT pjt.adset_name IS NULL THEN 'Ad Set'
+        ELSE 'Campaign'
+      END AS level,
+      CASE
+        WHEN pjt.channel = 'facebook-ads' THEN 1
+        ELSE 2
+      END AS platform_sort
+    FROM
+      pixel_joined_tvf () AS pjt
+    WHERE
+      pjt.event_date BETWEEN '2025-04-06' AND '2025-04-10'
+      AND pjt.model = 'Triple Attribution'
+      AND (
+        pjt.campaign_name ILIKE '%scale%'
+        OR pjt.campaign_name ILIKE '%sandbox%'
+        OR pjt.campaign_name ILIKE '%creative%'
+      )
+    GROUP BY
+      pjt.campaign_name,
+      pjt.adset_name,
+      pjt.ad_name,
+      pjt.channel,
+      pjt.campaign_status,
+      pjt.adset_status,
+      pjt.ad_status
+  ),
+  campaign_perf AS (
+    SELECT
+      campaign_name,
+      channel,
+      SUM(spend) AS campaign_spend,
+      SUM(purchases) AS campaign_purchases,
+      SUM(revenue) AS campaign_revenue
+    FROM
+      base_data
+    GROUP BY
+      campaign_name,
+      channel
+  ),
+  adset_perf AS (
+    SELECT
+      campaign_name,
+      adset_name,
+      channel,
+      SUM(spend) AS adset_spend,
+      SUM(purchases) AS adset_purchases,
+      SUM(revenue) AS adset_revenue
+    FROM
+      base_data
+    WHERE
+      NOT adset_name IS NULL
+    GROUP BY
+      campaign_name,
+      adset_name,
+      channel
+  ),
+  ranked_groups AS (
+    SELECT
+      campaign_name,
+      DENSE_RANK() OVER (ORDER BY campaign_name) AS group_rank
+    FROM
+      base_data
+  ),
+  emoji_palette AS (
+    SELECT 0 AS id, '🔵' AS emoji UNION ALL
+    SELECT 1, '🟣' UNION ALL
+    SELECT 2, '🟡' UNION ALL
+    SELECT 3, '⚫️' UNION ALL
+    SELECT 4, '🟠' UNION ALL
+    SELECT 5, '🟤'
+  )
 SELECT DISTINCT
   '🟢 Ready to Activate' AS recommendation,
   ep.emoji || ' ' || LEFT(REGEXP_REPLACE(bd.campaign_name, '[^a-zA-Z0-9]', ''), 6) AS group_id,
@@ -83,66 +96,80 @@ SELECT DISTINCT
   bd.channel,
   bd.spend,
   bd.purchases,
-  bd.revenue / NULLIF(bd.spend, 0) AS roas,
-  bd.spend / NULLIF(bd.purchases, 0) AS cpa,
-  bd.spend / NULLIF(bd.clicks, 0) AS cpc,
-  (bd.spend / NULLIF(bd.impressions, 0)) * 1000 AS cpm,
+  bd.revenue / nullIf(bd.spend, 0) AS roas,
+  bd.spend / nullIf(bd.purchases, 0) AS cpa,
+  bd.spend / nullIf(bd.clicks, 0) AS cpc,
+  (bd.spend / nullIf(bd.impressions, 0)) * 1000 AS cpm,
   ROW_NUMBER() OVER (
-    ORDER BY bd.platform_sort, bd.campaign_name, bd.adset_name, bd.level DESC, bd.spend DESC
+    ORDER BY
+      bd.platform_sort,
+      bd.campaign_name,
+      bd.adset_name,
+      bd.level DESC,
+      bd.spend DESC
   ) AS global_rank
-FROM base_data AS bd
-LEFT JOIN (
-  SELECT DISTINCT campaign_name, channel, campaign_spend, campaign_purchases, campaign_revenue
-  FROM campaign_perf
-) cp ON bd.campaign_name = cp.campaign_name AND bd.channel = cp.channel
-LEFT JOIN (
-  SELECT DISTINCT campaign_name, adset_name, channel, adset_spend, adset_purchases, adset_revenue
-  FROM adset_perf
-) asp ON bd.campaign_name = asp.campaign_name AND bd.adset_name = asp.adset_name AND bd.channel = asp.channel
-LEFT JOIN ranked_groups rg ON bd.campaign_name = rg.campaign_name
-LEFT JOIN emoji_palette ep ON MOD(rg.group_rank, 6) = ep.id
+FROM
+  base_data AS bd
+  LEFT JOIN campaign_perf AS cp ON bd.campaign_name = cp.campaign_name AND bd.channel = cp.channel
+  LEFT JOIN adset_perf AS asp ON bd.campaign_name = asp.campaign_name AND bd.adset_name = asp.adset_name AND bd.channel = asp.channel
+  LEFT JOIN ranked_groups AS rg ON bd.campaign_name = rg.campaign_name
+  LEFT JOIN emoji_palette AS ep ON rg.group_rank % 6 = ep.id
 WHERE
   bd.spend >= 20
   AND (
-    (bd.level = 'Ad' AND bd.ad_status <> 'ACTIVE')
-    OR (bd.level = 'Ad Set' AND bd.adset_status <> 'ACTIVE')
+    (
+      bd.level = 'Ad'
+      AND bd.ad_status <> 'ACTIVE'
+    )
+    OR (
+      bd.level = 'Ad Set'
+      AND bd.adset_status <> 'ACTIVE'
+    )
   )
   AND (
-    -- 🔵 SCALE Campaigns (all levels validated)
     (
       bd.campaign_name ILIKE '%scale%'
       AND bd.purchases >= 1
       AND (
-        (bd.spend BETWEEN 20 AND 70)
-        OR (bd.spend > 70 AND bd.purchases >= 2 AND (bd.revenue / NULLIF(bd.spend, 0)) >= 1.3)
-        OR (bd.spend > 120 AND bd.purchases >= 3 AND (bd.revenue / NULLIF(bd.spend, 0)) >= 1.3)
+        (bd.spend BETWEEN 1 AND 70)
+        OR (
+          bd.spend > 70 AND bd.purchases >= 2 AND (bd.revenue / nullIf(bd.spend, 0)) >= 1.3
+        )
+        OR (
+          bd.spend > 120 AND bd.purchases >= 3 AND (bd.revenue / nullIf(bd.spend, 0)) >= 1.3
+        )
       )
       AND (
         bd.level <> 'Ad'
         OR (
-          asp.adset_spend <= 100
-          OR (
-            asp.adset_spend > 100 AND asp.adset_purchases >= 2 AND (asp.adset_revenue / NULLIF(asp.adset_spend, 0)) >= 1.2
+          (
+            asp.adset_spend <= 75
+            AND asp.adset_purchases >= 1
           )
-        )
-        AND (
-          asp.adset_spend <= 150 OR (asp.adset_purchases >= 3 AND (asp.adset_revenue / NULLIF(asp.adset_spend, 0)) >= 1.2)
+          OR (
+            asp.adset_spend > 75 AND asp.adset_spend <= 100 AND asp.adset_purchases >= 2
+          )
+          OR (
+            asp.adset_spend > 100 AND asp.adset_purchases >= 2 AND (asp.adset_revenue / nullIf(asp.adset_spend, 0)) >= 1.2
+          )
+          OR (
+            asp.adset_spend > 150 AND asp.adset_purchases >= 3 AND (asp.adset_revenue / nullIf(asp.adset_spend, 0)) >= 1.2
+          )
         )
       )
       AND (
-        bd.level NOT IN ('Ad', 'Ad Set')
+        NOT bd.level IN ('Ad', 'Ad Set')
         OR (
           cp.campaign_spend <= 100
           OR (
-            cp.campaign_spend > 100 AND cp.campaign_purchases >= 2 AND (cp.campaign_revenue / NULLIF(cp.campaign_spend, 0)) >= 1.3
+            cp.campaign_spend > 100 AND cp.campaign_purchases >= 2 AND (cp.campaign_revenue / nullIf(cp.campaign_spend, 0)) >= 1.3
           )
-        )
-        AND (
-          cp.campaign_spend <= 150 OR (cp.campaign_purchases >= 3 AND (cp.campaign_revenue / NULLIF(cp.campaign_spend, 0)) >= 1.3)
+          OR (
+            cp.campaign_spend > 150 AND cp.campaign_purchases >= 3 AND (cp.campaign_revenue / nullIf(cp.campaign_spend, 0)) >= 1.3
+          )
         )
       )
     )
-    -- 🎨 SANDBOX / CREATIVE: Only Ads validated
     OR (
       (
         bd.channel = 'facebook-ads' AND bd.campaign_name ILIKE '%sandbox%'
@@ -156,9 +183,12 @@ WHERE
     AND (
       bd.spend BETWEEN 0 AND 75
       OR (
-        bd.spend > 75 AND bd.purchases >= 2 AND (bd.revenue / NULLIF(bd.spend, 0)) >= 1.3
+        bd.spend > 75 AND bd.purchases >= 2 AND (bd.revenue / nullIf(bd.spend, 0)) >= 1.3
       )
     )
-    AND NOT (bd.spend > 120 AND bd.purchases <= 3)
+    AND NOT (
+      bd.spend > 120 AND bd.purchases <= 3
+    )
   )
-ORDER BY global_rank;
+ORDER BY
+  global_rank
