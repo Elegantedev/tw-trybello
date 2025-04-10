@@ -97,13 +97,19 @@ WITH
             total_spend > 100 AND total_orders < 2
           )
           OR (
-            total_spend > 100 AND (total_revenue / nullIf(total_spend, 0)) < 1.2
+            total_spend > 100 AND total_orders > 2 AND (total_revenue / nullIf(total_spend, 0)) < 1.2
           )
           OR (
-            total_spend > 150 AND total_orders < 3
+            total_spend > 150 AND total_orders < 3 AND (total_revenue / nullIf(total_spend, 0)) < 1.2
           )
           OR (
-            (total_spend / nullIf(total_orders, 0)) > 90
+            (total_revenue / nullIf(total_spend, 0)) >= 1.1 AND (total_spend / nullIf(total_orders, 0)) > 90
+          )
+          OR (
+            (total_revenue / nullIf(total_spend, 0)) < 1.11 AND (total_spend / nullIf(total_orders, 0)) > 80
+          )
+          AND NOT (
+            total_spend > 100 AND total_orders >= 5 AND (total_revenue / nullIf(total_spend, 0)) > 1.1
           )
         )
 
