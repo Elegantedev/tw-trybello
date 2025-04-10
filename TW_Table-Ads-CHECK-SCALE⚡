@@ -1,0 +1,169 @@
+WITH
+  ad_set_data AS (
+    SELECT
+      pjt.campaign_name,
+      pjt.adset_name,
+      NULL AS ad_name,
+      'Ad Set' AS level,
+      SUM(pjt.spend) AS total_spend,
+      SUM(pjt.order_revenue) AS total_revenue,
+      SUM(pjt.orders_quantity) AS total_orders,
+      SUM(pjt.clicks) AS total_clicks,
+      SUM(pjt.impressions) AS total_impressions,
+      pjt.channel,
+      pjt.adset_status AS status
+    FROM
+      pixel_joined_tvf () AS pjt
+    WHERE
+      pjt.channel = 'facebook-ads'
+      AND pjt.event_date BETWEEN '2025-04-06' AND '2025-04-10'
+      AND pjt.model = 'Triple Attribution'
+      AND pjt.adset_status = 'ACTIVE'
+      AND pjt.campaign_status = 'ACTIVE'
+      AND pjt.campaign_name ilike '%scale%'
+    GROUP BY
+      pjt.campaign_name,
+      pjt.adset_name,
+      pjt.channel,
+      pjt.adset_status
+  ),
+  ad_data AS (
+    SELECT
+      pjt.campaign_name,
+      pjt.adset_name,
+      pjt.ad_name,
+      'Ad' AS level,
+      SUM(pjt.spend) AS total_spend,
+      SUM(pjt.order_revenue) AS total_revenue,
+      SUM(pjt.orders_quantity) AS total_orders,
+      SUM(pjt.clicks) AS total_clicks,
+      SUM(pjt.impressions) AS total_impressions,
+      pjt.channel,
+      pjt.ad_status AS status
+    FROM
+      pixel_joined_tvf () AS pjt
+    WHERE
+      pjt.channel IN ('facebook-ads', 'google-ads')
+      AND pjt.event_date BETWEEN '2025-04-06' AND '2025-04-10'
+      AND pjt.model = 'Triple Attribution'
+      AND pjt.ad_status = 'ACTIVE'
+      AND pjt.adset_status = 'ACTIVE'
+      AND pjt.campaign_status = 'ACTIVE'
+      AND (
+        (
+          pjt.channel = 'facebook-ads'
+          AND pjt.campaign_name ilike '%scale%'
+        )
+        OR (
+          pjt.channel = 'google-ads'
+          AND pjt.campaign_name ILIKE '%yt%'
+          AND pjt.campaign_name ilike '%scale%'
+        )
+      )
+    GROUP BY
+      pjt.campaign_name,
+      pjt.adset_name,
+      pjt.ad_name,
+      pjt.channel,
+      pjt.ad_status
+  ),
+  combined_reds AS (
+    SELECT
+      *,
+      CASE
+        WHEN level = 'Ad Set' THEN '💧 AD SET'
+        ELSE '🟪 AD'
+      END AS attention_flag,
+      CASE
+        WHEN channel = 'facebook-ads' THEN 1
+        ELSE 2
+      END AS platform_sort
+    FROM (
+      SELECT * FROM ad_set_data
+      WHERE
+        (
+          (
+            total_spend > 14
+            AND total_spend <= 50
+            AND (total_spend / nullIf(total_clicks, 0)) > 1.5
+          )
+          OR total_spend > 39
+        )
+        AND (
+          (
+            total_spend BETWEEN 42 AND 99 AND total_orders = 0
+          )
+          OR (
+            total_spend > 100 AND total_orders < 2
+          )
+          OR (
+            total_spend > 100 AND (total_revenue / nullIf(total_spend, 0)) < 1.2
+          )
+          OR (
+            total_spend > 150 AND total_orders < 3
+          )
+          OR (
+            (total_spend / nullIf(total_orders, 0)) > 90
+          )
+        )
+
+      UNION ALL
+
+      SELECT * FROM ad_data
+      WHERE
+        (
+          (
+            total_spend > 14
+            AND total_spend <= 50
+            AND (total_spend / nullIf(total_clicks, 0)) > 1.5
+          )
+          OR total_spend > 39
+        )
+        AND (
+          (
+            total_spend BETWEEN 42 AND 99 AND total_orders = 0
+          )
+          OR (
+            total_spend > 100 AND total_orders < 2
+          )
+          OR (
+            total_spend > 100 AND (total_revenue / nullIf(total_spend, 0)) < 1.2
+          )
+          OR (
+            total_spend > 150 AND total_orders < 3
+          )
+          OR (
+            total_spend > 100 AND (total_revenue / nullIf(total_spend, 0)) > 1.5 AND (total_spend / nullIf(total_orders, 0)) > 80
+          )
+          OR (
+            total_spend BETWEEN 0 AND 45 AND total_orders = 0 AND (total_spend / nullIf(total_clicks, 0)) > 1.49
+          )
+        )
+    ) AS red_only
+  )
+SELECT
+  attention_flag,
+  campaign_name,
+  adset_name,
+  ad_name,
+  level,
+  total_spend AS spend,
+  total_revenue / nullIf(total_spend, 0) AS roas,
+  total_orders,
+  total_spend / nullIf(total_orders, 0) AS cpa,
+  total_spend / nullIf(total_clicks, 0) AS cpc,
+  (total_spend / nullIf(total_impressions, 0)) * 1000 AS cpm,
+  channel,
+  status,
+  ROW_NUMBER() OVER (
+    ORDER BY
+      platform_sort,
+      campaign_name,
+      adset_name,
+      level DESC,
+      total_spend DESC
+  ) AS global_rank
+FROM
+  combined_reds
+ORDER BY
+  global_rank
