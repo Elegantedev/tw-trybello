@@ -77,15 +77,32 @@ WITH
       CASE
         WHEN channel = 'facebook-ads' THEN 1
         ELSE 2
-      END AS platform_sort
+      END AS platform_sort,
+      CASE
+        -- Ad Set reasons
+        WHEN level = 'Ad Set' AND total_spend BETWEEN 42 AND 99 AND total_orders = 0 THEN '🧯 Low Purchases $42–99'
+        WHEN level = 'Ad Set' AND total_spend > 100 AND total_orders < 2 THEN '🔻 High Spend <2 Orders'
+        WHEN level = 'Ad Set' AND total_spend > 100 AND total_orders > 2 AND (total_revenue / nullIf(total_spend, 0)) < 1.2 THEN '📉 ROAS < 1.2 w/ >2 Orders'
+        WHEN level = 'Ad Set' AND total_spend > 150 AND total_orders < 3 THEN '❌ $150+ Spend & <3 Orders'
+        WHEN level = 'Ad Set' AND (total_revenue / nullIf(total_spend, 0)) >= 1.1 AND (total_spend / nullIf(total_orders, 0)) > 90 THEN '💸 High CPA > 90'
+        WHEN level = 'Ad Set' AND (total_revenue / nullIf(total_spend, 0)) < 1.11 AND (total_spend / nullIf(total_orders, 0)) > 80 THEN '⚠️ ROAS <1.11 + CPA >80'
+
+        -- Ad reasons
+        WHEN level = 'Ad' AND total_spend BETWEEN 42 AND 99 AND total_orders = 0 THEN '🧯 Low Purchases $42–99'
+        WHEN level = 'Ad' AND total_spend > 100 AND total_orders < 2 THEN '🔻 High Spend <2 Orders'
+        WHEN level = 'Ad' AND total_spend > 100 AND (total_revenue / nullIf(total_spend, 0)) < 1.2 THEN '📉 ROAS < 1.2'
+        WHEN level = 'Ad' AND total_spend > 150 AND (total_orders < 3 OR (total_orders >= 3 AND (total_revenue / nullIf(total_spend, 0)) < 1.1)) THEN '❌ Ad $150+ & Weak ROAS'
+        WHEN level = 'Ad' AND total_spend > 100 AND (total_revenue / nullIf(total_spend, 0)) > 1.5 AND (total_spend / nullIf(total_orders, 0)) > 86 THEN '💸 High CPA despite ROAS'
+        WHEN level = 'Ad' AND total_spend BETWEEN 0 AND 45 AND total_orders = 0 AND (total_spend / nullIf(total_clicks, 0)) > 1.49 THEN '🧱 Low Spend, High CPC'
+
+        ELSE '🔍 Check'
+      END AS issue_reason
     FROM (
       SELECT * FROM ad_set_data
       WHERE
         (
           (
-            total_spend > 14
-            AND total_spend <= 50
-            AND (total_spend / nullIf(total_clicks, 0)) > 1.5
+            total_spend > 14 AND total_spend <= 50 AND (total_spend / nullIf(total_clicks, 0)) > 1.5
           )
           OR total_spend > 39
         )
@@ -100,7 +117,7 @@ WITH
             total_spend > 100 AND total_orders > 2 AND (total_revenue / nullIf(total_spend, 0)) < 1.2
           )
           OR (
-            total_spend > 150 AND total_orders < 3 AND (total_revenue / nullIf(total_spend, 0)) < 1.2
+            total_spend > 150 AND total_orders < 3
           )
           OR (
             (total_revenue / nullIf(total_spend, 0)) >= 1.1 AND (total_spend / nullIf(total_orders, 0)) > 90
@@ -108,9 +125,9 @@ WITH
           OR (
             (total_revenue / nullIf(total_spend, 0)) < 1.11 AND (total_spend / nullIf(total_orders, 0)) > 80
           )
-          AND NOT (
-            total_spend > 100 AND total_orders >= 5 AND (total_revenue / nullIf(total_spend, 0)) > 1.1
-          )
+        )
+        AND NOT (
+          total_spend > 100 AND total_orders >= 5 AND (total_revenue / nullIf(total_spend, 0)) > 1.1
         )
 
       UNION ALL
@@ -119,9 +136,7 @@ WITH
       WHERE
         (
           (
-            total_spend > 14
-            AND total_spend <= 50
-            AND (total_spend / nullIf(total_clicks, 0)) > 1.5
+            total_spend > 14 AND total_spend <= 50 AND (total_spend / nullIf(total_clicks, 0)) > 1.5
           )
           OR total_spend > 39
         )
@@ -136,14 +151,17 @@ WITH
             total_spend > 100 AND (total_revenue / nullIf(total_spend, 0)) < 1.2
           )
           OR (
-            total_spend > 150 AND total_orders < 3
+            total_spend > 150 AND (total_orders < 3 OR (total_orders >= 3 AND (total_revenue / nullIf(total_spend, 0)) < 1.1))
           )
           OR (
-            total_spend > 100 AND (total_revenue / nullIf(total_spend, 0)) > 1.5 AND (total_spend / nullIf(total_orders, 0)) > 80
+            total_spend > 100 AND (total_revenue / nullIf(total_spend, 0)) > 1.5 AND (total_spend / nullIf(total_orders, 0)) > 86
           )
           OR (
             total_spend BETWEEN 0 AND 45 AND total_orders = 0 AND (total_spend / nullIf(total_clicks, 0)) > 1.49
           )
+        )
+        AND NOT (
+          total_spend > 100 AND total_orders >= 5 AND (total_revenue / nullIf(total_spend, 0)) > 1.1 AND (total_spend / nullIf(total_orders, 0)) < 87
         )
     ) AS red_only
   )
@@ -153,6 +171,7 @@ SELECT
   adset_name,
   ad_name,
   level,
+  issue_reason,
   total_spend AS spend,
   total_revenue / nullIf(total_spend, 0) AS roas,
   total_orders,
