@@ -85,110 +85,118 @@ WITH
     SELECT 3, '⚫️' UNION ALL
     SELECT 4, '🟠' UNION ALL
     SELECT 5, '🟤'
-  )
-SELECT DISTINCT
-  '🟢 Ready to Activate' AS recommendation,
-  ep.emoji || ' ' || LEFT(REGEXP_REPLACE(bd.campaign_name, '[^a-zA-Z0-9]', ''), 6) AS group_id,
-  bd.level,
-  bd.campaign_name,
-  bd.adset_name,
-  bd.ad_name,
-  bd.channel,
-  bd.spend,
-  bd.purchases,
-  bd.revenue / nullIf(bd.spend, 0) AS roas,
-  bd.spend / nullIf(bd.purchases, 0) AS cpa,
-  bd.spend / nullIf(bd.clicks, 0) AS cpc,
-  (bd.spend / nullIf(bd.impressions, 0)) * 1000 AS cpm,
-  ROW_NUMBER() OVER (
-    ORDER BY
-      bd.platform_sort,
+  ),
+  final_results AS (
+    SELECT
+      '🟢 Ready to Activate' AS recommendation,
+      ep.emoji || ' ' || LEFT(REGEXP_REPLACE(bd.campaign_name, '[^a-zA-Z0-9]', ''), 6) AS group_id,
+      bd.level,
       bd.campaign_name,
       bd.adset_name,
-      bd.level DESC,
-      bd.spend DESC
-  ) AS global_rank
-FROM
-  base_data AS bd
-  LEFT JOIN campaign_perf AS cp ON bd.campaign_name = cp.campaign_name AND bd.channel = cp.channel
-  LEFT JOIN adset_perf AS asp ON bd.campaign_name = asp.campaign_name AND bd.adset_name = asp.adset_name AND bd.channel = asp.channel
-  LEFT JOIN ranked_groups AS rg ON bd.campaign_name = rg.campaign_name
-  LEFT JOIN emoji_palette AS ep ON rg.group_rank % 6 = ep.id
-WHERE
-  bd.spend >= 20
-  AND (
-    (
-      bd.level = 'Ad'
-      AND bd.ad_status <> 'ACTIVE'
-    )
-    OR (
-      bd.level = 'Ad Set'
-      AND bd.adset_status <> 'ACTIVE'
-    )
-  )
-  AND (
-    (
-      bd.campaign_name ILIKE '%scale%'
-      AND bd.purchases >= 1
+      bd.ad_name,
+      bd.channel,
+      bd.spend,
+      bd.purchases,
+      bd.revenue / nullIf(bd.spend, 0) AS roas,
+      bd.spend / nullIf(bd.purchases, 0) AS cpa,
+      bd.spend / nullIf(bd.clicks, 0) AS cpc,
+      (bd.spend / nullIf(bd.impressions, 0)) * 1000 AS cpm,
+      ROW_NUMBER() OVER (
+        PARTITION BY bd.campaign_name, bd.adset_name, bd.ad_name, bd.level
+        ORDER BY bd.spend DESC
+      ) AS row_num,
+      ROW_NUMBER() OVER (
+        ORDER BY
+          bd.platform_sort,
+          bd.campaign_name,
+          bd.adset_name,
+          bd.level DESC,
+          bd.spend DESC
+      ) AS global_rank
+    FROM
+      base_data AS bd
+      LEFT JOIN campaign_perf AS cp ON bd.campaign_name = cp.campaign_name AND bd.channel = cp.channel
+      LEFT JOIN adset_perf AS asp ON bd.campaign_name = asp.campaign_name AND bd.adset_name = asp.adset_name AND bd.channel = asp.channel
+      LEFT JOIN ranked_groups AS rg ON bd.campaign_name = rg.campaign_name
+      LEFT JOIN emoji_palette AS ep ON rg.group_rank % 6 = ep.id
+    WHERE
+      bd.spend >= 20
       AND (
-        (bd.spend BETWEEN 1 AND 70)
-        OR (
-          bd.spend > 70 AND bd.purchases >= 2 AND (bd.revenue / nullIf(bd.spend, 0)) >= 1.3
+        (
+          bd.level = 'Ad'
+          AND bd.ad_status <> 'ACTIVE'
         )
         OR (
-          bd.spend > 120 AND bd.purchases >= 3 AND (bd.revenue / nullIf(bd.spend, 0)) >= 1.3
+          bd.level = 'Ad Set'
+          AND bd.adset_status <> 'ACTIVE'
         )
       )
       AND (
-        bd.level <> 'Ad'
+        (
+          bd.campaign_name ILIKE '%scale%'
+          AND bd.purchases >= 1
+          AND (
+            (bd.spend BETWEEN 1 AND 70)
+            OR (
+              bd.spend > 70 AND bd.purchases >= 2 AND (bd.revenue / nullIf(bd.spend, 0)) >= 1.3
+            )
+            OR (
+              bd.spend > 120 AND bd.purchases >= 3 AND (bd.revenue / nullIf(bd.spend, 0)) >= 1.3
+            )
+          )
+          AND (
+            bd.level <> 'Ad'
+            OR (
+              (
+                asp.adset_spend <= 75 AND asp.adset_purchases >= 1
+              )
+              OR (
+                asp.adset_spend > 75 AND asp.adset_spend <= 100 AND asp.adset_purchases >= 2
+              )
+              OR (
+                asp.adset_spend > 100 AND asp.adset_purchases >= 2 AND (asp.adset_revenue / nullIf(asp.adset_spend, 0)) >= 1.2
+              )
+              OR (
+                asp.adset_spend > 150 AND asp.adset_purchases >= 3 AND (asp.adset_revenue / nullIf(asp.adset_spend, 0)) >= 1.2
+              )
+            )
+          )
+          AND (
+            NOT bd.level IN ('Ad', 'Ad Set')
+            OR (
+              cp.campaign_spend <= 100
+              OR (
+                cp.campaign_spend > 100 AND cp.campaign_purchases >= 2 AND (cp.campaign_revenue / nullIf(cp.campaign_spend, 0)) >= 1.3
+              )
+              OR (
+                cp.campaign_spend > 150 AND cp.campaign_purchases >= 3 AND (cp.campaign_revenue / nullIf(cp.campaign_spend, 0)) >= 1.3
+              )
+            )
+          )
+        )
         OR (
           (
-            asp.adset_spend <= 75
-            AND asp.adset_purchases >= 1
+            bd.channel = 'facebook-ads' AND bd.campaign_name ILIKE '%sandbox%'
           )
           OR (
-            asp.adset_spend > 75 AND asp.adset_spend <= 100 AND asp.adset_purchases >= 2
-          )
-          OR (
-            asp.adset_spend > 100 AND asp.adset_purchases >= 2 AND (asp.adset_revenue / nullIf(asp.adset_spend, 0)) >= 1.2
-          )
-          OR (
-            asp.adset_spend > 150 AND asp.adset_purchases >= 3 AND (asp.adset_revenue / nullIf(asp.adset_spend, 0)) >= 1.2
+            bd.channel = 'google-ads' AND bd.campaign_name ILIKE '%creative%'
           )
         )
-      )
-      AND (
-        NOT bd.level IN ('Ad', 'Ad Set')
-        OR (
-          cp.campaign_spend <= 100
+        AND bd.level = 'Ad'
+        AND bd.purchases >= 1
+        AND (
+          bd.spend BETWEEN 0 AND 75
           OR (
-            cp.campaign_spend > 100 AND cp.campaign_purchases >= 2 AND (cp.campaign_revenue / nullIf(cp.campaign_spend, 0)) >= 1.3
-          )
-          OR (
-            cp.campaign_spend > 150 AND cp.campaign_purchases >= 3 AND (cp.campaign_revenue / nullIf(cp.campaign_spend, 0)) >= 1.3
+            bd.spend > 75 AND bd.purchases >= 2 AND (bd.revenue / nullIf(bd.spend, 0)) >= 1.3
           )
         )
+        AND NOT (
+          bd.spend > 120 AND bd.purchases <= 3
+        )
       )
-    )
-    OR (
-      (
-        bd.channel = 'facebook-ads' AND bd.campaign_name ILIKE '%sandbox%'
-      )
-      OR (
-        bd.channel = 'google-ads' AND bd.campaign_name ILIKE '%creative%'
-      )
-    )
-    AND bd.level = 'Ad'
-    AND bd.purchases >= 1
-    AND (
-      bd.spend BETWEEN 0 AND 75
-      OR (
-        bd.spend > 75 AND bd.purchases >= 2 AND (bd.revenue / nullIf(bd.spend, 0)) >= 1.3
-      )
-    )
-    AND NOT (
-      bd.spend > 120 AND bd.purchases <= 3
-    )
   )
-ORDER BY
-  global_rank
+
+SELECT *
+FROM final_results
+WHERE row_num = 1
+ORDER BY global_rank
